@@ -1,0 +1,61 @@
+#ifndef SENSORS_SETUP_H
+#define SENSORS_SETUP_H
+#include <Arduino.h>
+#include <variables.h>
+
+class Sensor {
+    public:
+      String name;
+      __u8 index;
+    };
+
+extern Sensor Voltage_Sensor;
+extern Sensor Internal_Temperature_Sensor;
+extern Sensor V_Ref_Sensor;
+extern Sensor Gear_Pos_Sens;
+extern Sensor Susp_Pos_FR_Sensor;
+extern Sensor Susp_Pos_FL_Sensor;
+extern Sensor Susp_Pos_RR_Sensor;
+extern Sensor Susp_Pos_RL_Sensor;
+extern Sensor SteerWheel_Pos_Sensor;
+extern Sensor Wheel_Spd_FR_Sensor;
+extern Sensor Wheel_Spd_FL_Sensor;
+extern Sensor Wheel_Spd_RR_Sensor;
+extern Sensor Wheel_Spd_RL_Sensor;
+extern Sensor Disk_Temp_FR_Sensor;
+extern Sensor Disk_Temp_FL_Sensor;
+extern Sensor Disk_Temp_RR_Sensor;
+extern Sensor Disk_Temp_RL_Sensor;
+extern Sensor Caliper_Pressure_FR_Sensor;
+extern Sensor Caliper_Pressure_FL_Sensor;
+extern Sensor Caliper_Pressure_RR_Sensor;
+extern Sensor Caliper_Pressure_RL_Sensor;
+extern Sensor Throttle_Position_Sensor;
+extern Sensor Brake_Position_Sensor;
+extern Sensor Fuel_Pressure_Sensor;
+extern Sensor Fuel_Temperature_Sensor;
+extern Sensor Oil_Temperature_Sensor;
+extern Sensor Intercooler_Temperature_Sensor;
+extern Sensor Intercooler_Pressure_Sensor;
+extern Sensor In_Cooling_Temperature_Sensor;
+extern Sensor Out_Cooling_Temperature_Sensor;
+extern Sensor Cylinder_1_Pressure_Sensor;
+extern Sensor Cylinder_2_Pressure_Sensor;
+extern Sensor Firewall_Temperature_Sensor;
+extern Sensor Wing_Extensometer_1_Sensor;
+extern Sensor Wing_Extensometer_2_Sensor;
+extern Sensor Wing_Extensometer_3_Sensor;
+extern Sensor Wing_Extensometer_4_Sensor;
+
+// Formato para adicionar mais sensores " extern Sensor SensorVariable "
+
+extern Sensor* sensorIndex[];
+
+__u8 indexSetup();
+void setSensorName();
+
+String Gear_Pos(__u8 value);
+float LinearSensor(__u16 value, float a, float b);
+float TempSensor (__u16 value, __u32 R1, __u32 R2, float c1, float c2, float c3);
+
+#endif
