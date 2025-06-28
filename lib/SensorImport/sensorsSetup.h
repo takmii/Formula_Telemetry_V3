@@ -39,6 +39,8 @@ extern Sensor Intercooler_Temperature_Sensor;
 extern Sensor Intercooler_Pressure_Sensor;
 extern Sensor In_Cooling_Temperature_Sensor;
 extern Sensor Out_Cooling_Temperature_Sensor;
+extern Sensor MAP_Sensor;
+extern Sensor MAF_Sensor;
 extern Sensor Cylinder_1_Pressure_Sensor;
 extern Sensor Cylinder_2_Pressure_Sensor;
 extern Sensor Firewall_Temperature_Sensor;

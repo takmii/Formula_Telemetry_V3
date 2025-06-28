@@ -35,4 +35,5 @@ String Gear_Pos(__u8 value){
         return "6";
         break;
     }
+    return "ERROR";
 }

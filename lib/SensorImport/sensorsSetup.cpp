@@ -30,6 +30,8 @@ Sensor Intercooler_Temperature_Sensor;
 Sensor Intercooler_Pressure_Sensor;
 Sensor In_Cooling_Temperature_Sensor;
 Sensor Out_Cooling_Temperature_Sensor;
+Sensor MAP_Sensor;
+Sensor MAF_Sensor;
 Sensor Cylinder_1_Pressure_Sensor;
 Sensor Cylinder_2_Pressure_Sensor;
 Sensor Firewall_Temperature_Sensor;
@@ -71,6 +73,8 @@ Sensor *sensorIndex[] = {
     &Intercooler_Pressure_Sensor,
     &In_Cooling_Temperature_Sensor,
     &Out_Cooling_Temperature_Sensor,
+    &MAP_Sensor,
+    &MAF_Sensor,
     &Cylinder_1_Pressure_Sensor,
     &Cylinder_2_Pressure_Sensor,
     &Firewall_Temperature_Sensor,
@@ -94,41 +98,43 @@ __u8 indexSetup()
 
 void setSensorName()
 {
-    Voltage_Sensor.name = "Voltage (V)";
-    Internal_Temperature_Sensor.name = "Voltage (V)";
-    V_Ref_Sensor.name = "Voltage (V)";
-    Gear_Pos_Sens.name = "Voltage (V)";
-    Susp_Pos_FR_Sensor.name = "Voltage (V)";
-    Susp_Pos_FL_Sensor.name = "Voltage (V)";
-    Susp_Pos_RR_Sensor.name = "Voltage (V)";
-    Susp_Pos_RL_Sensor.name = "Voltage (V)";
-    SteerWheel_Pos_Sensor.name = "Voltage (V)";
-    Wheel_Spd_FR_Sensor.name = "Voltage (V)";
-    Wheel_Spd_FL_Sensor.name = "Voltage (V)";
-    Wheel_Spd_RR_Sensor.name = "Voltage (V)";
-    Wheel_Spd_RL_Sensor.name = "Voltage (V)";
-    Disk_Temp_FR_Sensor.name = "Voltage (V)";
-    Disk_Temp_FL_Sensor.name = "Voltage (V)";
-    Disk_Temp_RR_Sensor.name = "Voltage (V)";
-    Disk_Temp_RL_Sensor.name = "Voltage (V)";
-    Caliper_Pressure_FR_Sensor.name = "Voltage (V)";
-    Caliper_Pressure_FL_Sensor.name = "Voltage (V)";
-    Caliper_Pressure_RR_Sensor.name = "Voltage (V)";
-    Caliper_Pressure_RL_Sensor.name = "Voltage (V)";
-    Throttle_Position_Sensor.name = "Voltage (V)";
-    Brake_Position_Sensor.name = "Voltage (V)";
+    Voltage_Sensor.name = "Bat_Voltage (V)";
+    Internal_Temperature_Sensor.name = "Int_Temp (ºC)";
+    V_Ref_Sensor.name = "Ref_Voltage (V)";
+    Gear_Pos_Sens.name = "Gear";
+    Susp_Pos_FR_Sensor.name = "Susp_Pos_FR (º)";
+    Susp_Pos_FL_Sensor.name = "Susp_Pos_FL (º)";
+    Susp_Pos_RR_Sensor.name = "Susp_Pos_RR (º)";
+    Susp_Pos_RL_Sensor.name = "Susp_Pos_RL (º)";
+    SteerWheel_Pos_Sensor.name = "SteerWheel (º)";
+    Wheel_Spd_FR_Sensor.name = "Wheel_SPD_FR (km/h)";
+    Wheel_Spd_FL_Sensor.name = "Wheel_SPD_FL (km/h)";
+    Wheel_Spd_RR_Sensor.name = "Wheel_SPD_RR (km/h)";
+    Wheel_Spd_RL_Sensor.name = "Wheel_SPD_RL (km/h)";
+    Disk_Temp_FR_Sensor.name = "Disk_Temp_FR (ºC)";
+    Disk_Temp_FL_Sensor.name = "Disk_Temp_FL (ºC)";
+    Disk_Temp_RR_Sensor.name = "Disk_Temp_RR (ºC)";
+    Disk_Temp_RL_Sensor.name = "Disk_Temp_RL (ºC)";
+    Caliper_Pressure_FR_Sensor.name = "Caliper_Press_FR (kPa)";
+    Caliper_Pressure_FL_Sensor.name = "Caliper_Press_FL (kPa)";
+    Caliper_Pressure_RR_Sensor.name = "Caliper_Press_RR (kPa)";
+    Caliper_Pressure_RL_Sensor.name = "Caliper_Press_RL (kPa)";
+    Throttle_Position_Sensor.name = "TPS (%)";
+    Brake_Position_Sensor.name = "Brake (%)";
     Fuel_Pressure_Sensor.name = "Voltage (V)";
-    Fuel_Temperature_Sensor.name = "Voltage (V)";
-    Oil_Temperature_Sensor.name = "Voltage (V)";
-    Intercooler_Temperature_Sensor.name = "Voltage (V)";
-    Intercooler_Pressure_Sensor.name = "Voltage (V)";
-    In_Cooling_Temperature_Sensor.name = "Voltage (V)";
-    Out_Cooling_Temperature_Sensor.name = "Voltage (V)";
-    Cylinder_1_Pressure_Sensor.name = "Voltage (V)";
-    Cylinder_2_Pressure_Sensor.name = "Voltage (V)";
-    Firewall_Temperature_Sensor.name = "Voltage (V)";
-    Wing_Extensometer_1_Sensor.name = "Voltage (V)";
-    Wing_Extensometer_2_Sensor.name = "Voltage (V)";
-    Wing_Extensometer_3_Sensor.name = "Voltage (V)";
-    Wing_Extensometer_4_Sensor.name = "Voltage (V)";
+    Fuel_Temperature_Sensor.name = "Fuel_Temp (ºC)";
+    Oil_Temperature_Sensor.name = "Oil_Temp (ºC)";
+    Intercooler_Temperature_Sensor.name = "Intercooler_In_Temp (ºC)";
+    Intercooler_Pressure_Sensor.name = "Intercooler_Out_Temp (ºC)";
+    In_Cooling_Temperature_Sensor.name = "Cooling_In_Temp (ºC)";
+    Out_Cooling_Temperature_Sensor.name = "Cooling_Out_Temp (ºC)";
+    MAP_Sensor.name = "MAP (kPa)";
+    MAF_Sensor.name = "MAF (mm^3/s)";
+    Cylinder_1_Pressure_Sensor.name = "Cylinder_1_Press (kPa)";
+    Cylinder_2_Pressure_Sensor.name = "Cylinder_2_Press (kPa)";
+    Firewall_Temperature_Sensor.name = "Firewall_Temp (ºC)";
+    Wing_Extensometer_1_Sensor.name = "Wing_Ext_1 (mm)";
+    Wing_Extensometer_2_Sensor.name = "Wing_Ext_2 (mm)";
+    Wing_Extensometer_3_Sensor.name = "Wing_Ext_3 (mm)";
+    Wing_Extensometer_4_Sensor.name = "Wing_Ext_4 (mm)";
 }
