@@ -34,18 +34,28 @@ volatile bool buffer_read;
 uint8_t row_write = 0;
 uint8_t row_read = 0;
 
+bool rtc_exists=0;
+bool rtc_setup=0;
+
 void fn_Debug(__u8 data[DEBUG_DLC]);
+
+RTC_DS3231 rtc;
 
 void setup()
 {
   memset(sensorValues, 0, sizeof(sensorValues));
   sdMutex = xSemaphoreCreateRecursiveMutex();
-  timeBase espTime;
   string_flag = 0;
+  Wire.begin(25, 26);
+
   Serial.begin(115200);
-  while (!Serial)
-  {
-  };
+  while (!Serial){}
+  if (!rtc.begin()) {
+    Serial.println("RTC DS3231 não encontrado.");
+  }
+  else{
+    rtc_exists=1;
+  }
   CAN.setPins(CAN_RX_PIN, CAN_TX_PIN);
   while (!CAN.begin(500E3))
   {
@@ -62,9 +72,11 @@ void setup()
       delay(100);
     }
     Serial.println("WiFi connected.");
+    if (rtc_setup&&rtc_exists){
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
     time_get = 1;
     espTime = getTimeBase();
+    setRTC();
     Serial.print(espTime.day);
     Serial.print("/");
     Serial.print(espTime.month);
@@ -76,6 +88,7 @@ void setup()
     Serial.print(espTime.minute);
     Serial.print(":");
     Serial.println(espTime.second);
+    }
   }
 
   if (WiFi.status() != WL_CONNECTED)
@@ -84,16 +97,17 @@ void setup()
     WiFi.mode(WIFI_OFF);
   }
 
+  if (!rtc_setup&&rtc_exists){
+    getRTC();
+    time_get = 1;
+  }
+
   sensorLength = indexSetup();
 
   setSensorName();
 
   SD_SPI.begin(ESP32_SCK, ESP32_MISO, ESP32_MOSI, SD_CS);
 
-  /*if (!SD.begin(SdSpiConfig(SD_CS, DEDICATED_SPI, 1000000, &SD_SPI)))
-  {
-    Serial.println("Falha ao inicializar o cartão SD!");
-  }*/
   if (!SD.begin(SD_CS, SD_SPI))
   {
     Serial.println("Falha ao inicializar o cartão SD!");
@@ -120,10 +134,6 @@ void setup()
     file_ = dir_ + "/" + "test";
     file_ = verifyFilename(file_);
 
-    /*if (!oFile.open(file_.c_str(), O_WRITE | O_CREAT | O_APPEND))
-    {
-      Serial.println("Falha ao abrir arquivo");
-    }*/
     oFile = SD.open(file_.c_str(), FILE_WRITE);
 
     if (!oFile)
@@ -149,9 +159,9 @@ void setup()
       "SD Flush", // Name of the task
       2048,       // Stack size in words
       NULL,       // Task input parameter
-      1,          // Priority of the task
+      2,          // Priority of the task
       NULL,       // Task handle
-      0           // Core where the task should run (0 or 1)
+      1           // Core where the task should run (0 or 1)
   );
 
   xTaskCreatePinnedToCore(
@@ -161,7 +171,7 @@ void setup()
       NULL,            // Params
       3,               // Priority
       NULL,            // Task handle
-      1                // Core (0 or 1)
+      0                // Core (0 or 1)
   );
 }
 
@@ -171,7 +181,7 @@ void loop()
 
 void sensorUpdate(float value, uint8_t index)
 {
-  snprintf(sensorValues[buffer_write][row_write][index], 7, "%6.2f", value);
+  snprintf(sensorValues[buffer_write][row_write][index], 7, "%.2f", value);
 }
 
 void sensorUpdate(uint8_t value, uint8_t index)
@@ -303,7 +313,6 @@ void CAN_receiveTask(void *parameter)
     if (packetSize)
     {
       id = CAN.packetId();
-      Serial.println(id);
       static uint8_t data[8];
 
       if (data != nullptr)
@@ -357,6 +366,41 @@ timeBase getTimeBase()
   tb.second = timeinfo.tm_sec;
 
   return tb;
+}
+
+void setRTC(){
+    rtc.adjust(DateTime(
+    espTime.year,
+    espTime.month,
+    espTime.day,
+    espTime.hour,
+    espTime.minute,
+    espTime.second
+  ));
+}
+
+void getRTC(){
+  DateTime now = rtc.now();
+  struct tm t;
+  t.tm_year = now.year() - 1900;
+  t.tm_mon  = now.month() - 1;
+  t.tm_mday = now.day();
+  t.tm_hour = now.hour();
+  t.tm_min  = now.minute();
+  t.tm_sec  = now.second();
+  t.tm_isdst = 0;
+
+  time_t timeSinceEpoch = mktime(&t);
+
+  struct timeval tv = { .tv_sec = timeSinceEpoch, .tv_usec = 0 };
+  settimeofday(&tv, nullptr);
+
+  espTime.year = now.year();
+  espTime.month = now.month();
+  espTime.day = now.day();
+  espTime.hour = now.hour();
+  espTime.minute = now.minute();
+  espTime.second = now.second();
 }
 
 void CAN_setSensor(const __u8 *canData, __u8 canPacketSize, __u32 canId)
@@ -425,13 +469,19 @@ void fn_Messages(__u8 data[MESSAGES_DLC])
 
 void fn_Data_01(__u8 data[DATA_01_DLC])
 {
-  __u16 r_Voltage = ((data[1] & 0x0F) << 8) + data[0];
+  __u16 r_vBat = ((data[1] & 0x0F) << 8) + data[0];
   __u16 r_intTemp = (data[2] << 4) + ((data[1] >> 4) & 0x0F);
-  __u16 r_Vref = ((data[4] & 0x0F) << 8) + data[3];
+  __u16 r_vRef = ((data[4] & 0x0F) << 8) + data[3];
   __u8 r_Gear = (data[4] >> 4) & 0x0F;
 
-  sensorUpdate(Gear_Pos(r_Gear), Gear_Pos_Sens.index);
-  sensorUpdate(LinearSensor(r_Vref, 0.000805861, 0), V_Ref_Sensor.index);
+  float vBat = vBatSensor(r_vBat);
+  float vRef = vRefSensor(r_vRef);
+  String Gear = Gear_Pos(r_Gear);
+
+  sensorUpdate(vBat, Voltage_Sensor.index);
+  sensorUpdate(vRef, V_Ref_Sensor.index);
+  sensorUpdate(Gear, Gear_Pos_Sens.index);
+  
   /*Serial.print(r_Gear);
   Serial.print(" ");*/
   // Serial.println((xTaskGetTickCount() * 1000) / configTICK_RATE_HZ);
@@ -439,7 +489,16 @@ void fn_Data_01(__u8 data[DATA_01_DLC])
 
 void fn_Data_02(__u8 data[DATA_02_DLC])
 {
-  Serial.println(data[0]);
+  /*__u16 r_Susp_FR = ((data[1] & 0x0F) << 8) + data[0];
+  __u16 r_Susp_FL = (data[2] << 4) + ((data[1] >> 4) & 0x0F);
+  __u16 r_Susp_RR = ((data[4] & 0x0F) << 8) + data[3];
+  __u16 r_Susp_RL = (data[5] << 4) + ((data[4] >> 4) & 0x0F);
+
+  sensorUpdate(r_Susp_FR, Susp_Pos_FR_Sensor.index);
+  sensorUpdate(r_Susp_FL, Susp_Pos_FL_Sensor.index);
+  sensorUpdate(r_Susp_RR, Susp_Pos_RR_Sensor.index);
+  sensorUpdate(r_Susp_RL, Susp_Pos_RL_Sensor.index);*/
+
 }
 
 void fn_Data_03(__u8 data[DATA_03_DLC])
@@ -476,8 +535,9 @@ void fn_Debug(__u8 data[DEBUG_DLC])
   {
     for (__u8 i = 0; i < DEBUG_DLC; i++)
     {
-      if (data[i] == 0)
+      if (data[i] == '$')
       {
+        Serial.println(can_msg);
         string_flag = true;
         break;
       }
@@ -488,8 +548,6 @@ void fn_Debug(__u8 data[DEBUG_DLC])
     }
     if (string_flag)
     {
-      // Serial.print("_: ");
-      // Serial.println(can_msg);
       can_msg = "";
       string_flag = false;
     }
@@ -510,6 +568,7 @@ void writeSDCard()
         if (val[0] != '\0')
         {
           linha += val;
+          val[0] = '\0';
         }
         // oFile.print(4095);
         linha += ";"; // separador CSV

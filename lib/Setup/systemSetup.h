@@ -2,6 +2,8 @@
 #define LIBS_H
 
 //#include <SdFat.h>
+#include <Wire.h>
+#include <RTClib.h>
 #include <SD.h>
 #include <SPI.h>
 #include <pins.h>
@@ -53,6 +55,8 @@ void sdTask(void *parameter);
 void sdFlush(void *parameter);
 void CAN_receiveTask(void *parameter);
 void disableBluetooth();
+void getRTC();
+void setRTC();
 
 void writeSDCard();
 

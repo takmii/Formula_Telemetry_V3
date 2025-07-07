@@ -3,6 +3,10 @@
 #include <Arduino.h>
 #include <variables.h>
 
+#define V_4095 3.3
+#define A_20V 24818
+#define A_5_5V 6825
+
 class Sensor {
     public:
       String name;
@@ -59,5 +63,7 @@ void setSensorName();
 String Gear_Pos(__u8 value);
 float LinearSensor(__u16 value, float a, float b);
 float TempSensor (__u16 value, __u32 R1, __u32 R2, float c1, float c2, float c3);
+float vBatSensor(__u16 value);
+float vRefSensor(__u16 value);
 
 #endif

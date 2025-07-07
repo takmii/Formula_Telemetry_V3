@@ -2,6 +2,7 @@
 #define TIME_SETUP_H
 
 #include "time.h"
+#include <string.h>
 
 struct timeBase {
     int year;
@@ -12,20 +13,6 @@ struct timeBase {
     int second;
   };
   timeBase getTimeBase();
-
-  String month[12] = {
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December"
-  };
+  extern timeBase espTime;
 
 #endif
