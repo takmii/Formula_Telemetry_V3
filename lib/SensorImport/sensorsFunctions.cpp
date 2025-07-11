@@ -12,12 +12,14 @@ float TempSensor (__u16 value, __u32 R1, __u32 R2, float c1, float c2, float c3)
 }
 
 float vBatSensor(__u16 value){
-  float vBat = (float) value * A_20V / 4095;
+  __u16 dop = degreesofPrecision(value,3.3,0.1);
+  float vBat = (float) dop * A_20V / 4095;
   return vBat/A_20V * 20;
 }
 
 float vRefSensor(__u16 value){
-  float vRef = (float) value * A_5_5V / 4095;
+  __u16 dop = degreesofPrecision(value,3.3,0.1);
+  float vRef = (float) dop * A_5_5V / 4095;
   return vRef/A_5_5V * 5.5;
 }
 
@@ -46,4 +48,10 @@ String Gear_Pos(__u8 value){
         break;
     }
     return "ERROR";
+}
+
+unsigned short degreesofPrecision(uint16_t data, float max_Value, float decimal){
+  float factor = decimal/max_Value;
+  uint16_t arred = 4095.0 * factor;
+  return (data/arred)*arred;
 }

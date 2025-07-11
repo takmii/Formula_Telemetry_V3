@@ -25,6 +25,9 @@ TickType_t now;
 volatile bool flag_sd = 0;
 bool sd_started = 0;
 
+bool sd_open = 0;
+bool sd_hold = 0;
+
 bool string_flag;
 String can_msg = "";
 
@@ -34,8 +37,10 @@ volatile bool buffer_read;
 uint8_t row_write = 0;
 uint8_t row_read = 0;
 
-bool rtc_exists=0;
-bool rtc_setup=0;
+bool rtc_exists = 0;
+bool rtc_setup = 0;
+
+QueueHandle_t can_rx_queue;
 
 void fn_Debug(__u8 data[DEBUG_DLC]);
 
@@ -49,17 +54,23 @@ void setup()
   Wire.begin(25, 26);
 
   Serial.begin(115200);
-  while (!Serial){}
-  if (!rtc.begin()) {
+  while (!Serial)
+  {
+  }
+  if (!rtc.begin())
+  {
     Serial.println("RTC DS3231 não encontrado.");
   }
-  else{
-    rtc_exists=1;
+  else
+  {
+    rtc_exists = 1;
   }
-  CAN.setPins(CAN_RX_PIN, CAN_TX_PIN);
+  /*CAN.setPins(CAN_RX_PIN, CAN_TX_PIN);
   while (!CAN.begin(500E3))
   {
-  };
+  };*/
+
+  init_twai();
 
   disableBluetooth();
 
@@ -72,22 +83,23 @@ void setup()
       delay(100);
     }
     Serial.println("WiFi connected.");
-    if (rtc_setup&&rtc_exists){
-    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-    time_get = 1;
-    espTime = getTimeBase();
-    setRTC();
-    Serial.print(espTime.day);
-    Serial.print("/");
-    Serial.print(espTime.month);
-    Serial.print("/");
-    Serial.print(espTime.year);
-    Serial.print("  ");
-    Serial.print(espTime.hour);
-    Serial.print(":");
-    Serial.print(espTime.minute);
-    Serial.print(":");
-    Serial.println(espTime.second);
+    if (rtc_setup && rtc_exists)
+    {
+      configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+      time_get = 1;
+      espTime = getTimeBase();
+      setRTC();
+      Serial.print(espTime.day);
+      Serial.print("/");
+      Serial.print(espTime.month);
+      Serial.print("/");
+      Serial.print(espTime.year);
+      Serial.print("  ");
+      Serial.print(espTime.hour);
+      Serial.print(":");
+      Serial.print(espTime.minute);
+      Serial.print(":");
+      Serial.println(espTime.second);
     }
   }
 
@@ -97,7 +109,8 @@ void setup()
     WiFi.mode(WIFI_OFF);
   }
 
-  if (!rtc_setup&&rtc_exists){
+  if (!rtc_setup && rtc_exists)
+  {
     getRTC();
     time_get = 1;
   }
@@ -134,11 +147,15 @@ void setup()
     file_ = dir_ + "/" + "test";
     file_ = verifyFilename(file_);
 
-    oFile = SD.open(file_.c_str(), FILE_WRITE);
+    oFile = SD.open(file_.c_str(), FILE_APPEND);
 
     if (!oFile)
     {
       Serial.println("Falha ao abrir arquivo");
+    }
+    else
+    {
+      sd_open = 1;
     }
 
     writeHeader(file_.c_str(), sensorLength);
@@ -162,6 +179,16 @@ void setup()
       2,          // Priority of the task
       NULL,       // Task handle
       1           // Core where the task should run (0 or 1)
+  );
+
+  xTaskCreatePinnedToCore(
+      sdVerify,    // Function to implement the task
+      "SD Verify", // Name of the task
+      1024,        // Stack size in words
+      NULL,        // Task input parameter
+      2,           // Priority of the task
+      NULL,        // Task handle
+      1            // Core where the task should run (0 or 1)
   );
 
   xTaskCreatePinnedToCore(
@@ -282,6 +309,8 @@ void sdTask(void *parameter)
         writeSDCard();
       }
     }
+
+
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
 }
@@ -292,49 +321,45 @@ void sdFlush(void *parameter)
   const TickType_t xFrequency = pdMS_TO_TICKS(SD_FLUSH_TIMER);
   for (;;)
   {
-    if (sd_started){
-    oFile.flush();
+    if (sd_started)
+    {
+      oFile.flush();
     }
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
 }
 
-void CAN_receiveTask(void *parameter)
+void sdVerify(void *parameter)
 {
   TickType_t xLastWakeTime = xTaskGetTickCount();
-  const TickType_t xFrequency = pdMS_TO_TICKS(CAN_TASK_TIMER);
+  const TickType_t xFrequency = pdMS_TO_TICKS(SD_VERIFY_TIMER);
+  for (;;)
+  {
+    if (sd_started){
+    if (!sd_hold)
+    {
+      if (!oFile)
+      {
+        oFile = SD.open(file_.c_str(), FILE_APPEND);
+      }
+      
+    }
+  }
+  vTaskDelayUntil(&xLastWakeTime, xFrequency);
+}
+}
 
-  __u32 id;
+void CAN_receiveTask(void *parameter)
+{
+  twai_message_t message;
+  uint32_t alerts;
 
   for (;;)
   {
-
-    __u8 packetSize = CAN.parsePacket();
-    if (packetSize)
+    while (twai_receive(&message, pdMS_TO_TICKS(1)) == ESP_OK)
     {
-      id = CAN.packetId();
-      static uint8_t data[8];
-
-      if (data != nullptr)
-      {
-        __u8 i = 0;
-        while (CAN.available() && i < packetSize)
-        {
-          data[i++] = (uint8_t)CAN.read();
-        }
-
-        CAN_setSensor(data, packetSize, id);
-      }
+      CAN_setSensor(message.data, message.data_length_code, message.identifier);
     }
-    timeValues[buffer_write][row_write] = (xTaskGetTickCount() * 1000) / configTICK_RATE_HZ;
-    row_write++;
-    if (row_write >= BUFFER_LENGTH)
-    {
-      buffer_write = !buffer_write;
-      flag_sd = 1;
-      row_write = 0;
-    }
-    vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
 }
 
@@ -368,31 +393,32 @@ timeBase getTimeBase()
   return tb;
 }
 
-void setRTC(){
-    rtc.adjust(DateTime(
-    espTime.year,
-    espTime.month,
-    espTime.day,
-    espTime.hour,
-    espTime.minute,
-    espTime.second
-  ));
+void setRTC()
+{
+  rtc.adjust(DateTime(
+      espTime.year,
+      espTime.month,
+      espTime.day,
+      espTime.hour,
+      espTime.minute,
+      espTime.second));
 }
 
-void getRTC(){
+void getRTC()
+{
   DateTime now = rtc.now();
   struct tm t;
   t.tm_year = now.year() - 1900;
-  t.tm_mon  = now.month() - 1;
+  t.tm_mon = now.month() - 1;
   t.tm_mday = now.day();
   t.tm_hour = now.hour();
-  t.tm_min  = now.minute();
-  t.tm_sec  = now.second();
+  t.tm_min = now.minute();
+  t.tm_sec = now.second();
   t.tm_isdst = 0;
 
   time_t timeSinceEpoch = mktime(&t);
 
-  struct timeval tv = { .tv_sec = timeSinceEpoch, .tv_usec = 0 };
+  struct timeval tv = {.tv_sec = timeSinceEpoch, .tv_usec = 0};
   settimeofday(&tv, nullptr);
 
   espTime.year = now.year();
@@ -409,14 +435,6 @@ void CAN_setSensor(const __u8 *canData, __u8 canPacketSize, __u32 canId)
   __u8 data[pSize];
   __u32 id = canId;
   memcpy(data, canData, pSize);
-
-  /*Serial.print("0x");
-  Serial.print(id,HEX);
-  Serial.print(": ");
-  for (__u8 i=0; i<pSize; i++){
-    Serial.print(data[i]);
-  }
-  Serial.println("");*/
 
   switch (canId)
   {
@@ -451,6 +469,10 @@ void CAN_setSensor(const __u8 *canData, __u8 canPacketSize, __u32 canId)
     fn_Data_09(data);
     break;
 
+  case BUFFER_ACK_ID:
+    fn_Buffer_Ack(data);
+    break;
+
   case DEBUG_ID:
     fn_Debug(data);
     break;
@@ -481,7 +503,7 @@ void fn_Data_01(__u8 data[DATA_01_DLC])
   sensorUpdate(vBat, Voltage_Sensor.index);
   sensorUpdate(vRef, V_Ref_Sensor.index);
   sensorUpdate(Gear, Gear_Pos_Sens.index);
-  
+
   /*Serial.print(r_Gear);
   Serial.print(" ");*/
   // Serial.println((xTaskGetTickCount() * 1000) / configTICK_RATE_HZ);
@@ -489,7 +511,7 @@ void fn_Data_01(__u8 data[DATA_01_DLC])
 
 void fn_Data_02(__u8 data[DATA_02_DLC])
 {
-  /*__u16 r_Susp_FR = ((data[1] & 0x0F) << 8) + data[0];
+  __u16 r_Susp_FR = ((data[1] & 0x0F) << 8) + data[0];
   __u16 r_Susp_FL = (data[2] << 4) + ((data[1] >> 4) & 0x0F);
   __u16 r_Susp_RR = ((data[4] & 0x0F) << 8) + data[3];
   __u16 r_Susp_RL = (data[5] << 4) + ((data[4] >> 4) & 0x0F);
@@ -497,8 +519,7 @@ void fn_Data_02(__u8 data[DATA_02_DLC])
   sensorUpdate(r_Susp_FR, Susp_Pos_FR_Sensor.index);
   sensorUpdate(r_Susp_FL, Susp_Pos_FL_Sensor.index);
   sensorUpdate(r_Susp_RR, Susp_Pos_RR_Sensor.index);
-  sensorUpdate(r_Susp_RL, Susp_Pos_RL_Sensor.index);*/
-
+  sensorUpdate(r_Susp_RL, Susp_Pos_RL_Sensor.index);
 }
 
 void fn_Data_03(__u8 data[DATA_03_DLC])
@@ -527,6 +548,21 @@ void fn_Data_08(__u8 data[DATA_08_DLC])
 
 void fn_Data_09(__u8 data[DATA_09_DLC])
 {
+}
+
+void fn_Buffer_Ack(__u8 data[BUFFER_ACK_DLC])
+{
+  if (data[0]=='1'){
+    timeValues[buffer_write][row_write] = (xTaskGetTickCount() * 1000) / configTICK_RATE_HZ;
+    row_write++;
+    if (row_write >= BUFFER_LENGTH)
+    {
+      buffer_write = !buffer_write;
+      flag_sd = 1;
+      row_write = 0;
+    }
+  }
+
 }
 
 void fn_Debug(__u8 data[DEBUG_DLC])
@@ -559,6 +595,7 @@ void writeSDCard()
   if (oFile)
   {
     String linha;
+    sd_hold = 1;
     for (int l = 0; l < BUFFER_LENGTH; l++)
     {
       linha.clear();
@@ -577,6 +614,47 @@ void writeSDCard()
       oFile.println(linha);
     }
     // oFile.flush(); // força gravação no cartão SD
+    sd_hold = 0;
   }
   flag_sd = false; // sinaliza que terminou a escrita
+}
+
+void init_twai()
+{
+  // Initialize configuration structures using macro initializers
+  twai_general_config_t g_config = {
+      .mode = TWAI_MODE_NORMAL,
+      .tx_io = CAN_TX_PIN,
+      .rx_io = CAN_RX_PIN,
+      .clkout_io = TWAI_IO_UNUSED,
+      .bus_off_io = TWAI_IO_UNUSED,
+      .tx_queue_len = 5,
+      .rx_queue_len = 5,
+      .alerts_enabled = TWAI_ALERT_NONE,
+      .clkout_divider = 0};
+
+  twai_timing_config_t t_config = TWAI_TIMING_CONFIG_1MBITS();
+  twai_filter_config_t f_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
+
+  // Install TWAI driver
+  if (twai_driver_install(&g_config, &t_config, &f_config) == ESP_OK)
+  {
+    printf("Driver installed\n");
+  }
+  else
+  {
+    printf("Failed to install driver\n");
+    return;
+  }
+
+  // Start TWAI driver
+  if (twai_start() == ESP_OK)
+  {
+    printf("Driver started\n");
+  }
+  else
+  {
+    printf("Failed to start driver\n");
+    return;
+  }
 }

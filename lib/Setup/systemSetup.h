@@ -17,7 +17,8 @@
 #include <WiFiClientSecure.h>
 #include <timeSetup.h>
 #include <PubSubClient.h>
-#include <CAN.h>
+//#include <CAN.h>
+#include "driver/twai.h"
 #include <CAN_Messages.h>
 
 
@@ -32,6 +33,7 @@
 
 #define SD_TASK_TIMER CAN_TASK_TIMER
 #define SD_FLUSH_TIMER 1000
+#define SD_VERIFY_TIMER 5000
 
 #define CAN_TX_PIN GPIO_NUM_22
 #define CAN_RX_PIN GPIO_NUM_21
@@ -53,6 +55,7 @@ String verifyFilename(String filename);
 
 void sdTask(void *parameter);
 void sdFlush(void *parameter);
+void sdVerify(void *parameter);
 void CAN_receiveTask(void *parameter);
 void disableBluetooth();
 void getRTC();
@@ -74,7 +77,10 @@ void fn_Data_06(__u8 data[DATA_06_DLC]);
 void fn_Data_07(__u8 data[DATA_07_DLC]);
 void fn_Data_08(__u8 data[DATA_08_DLC]);
 void fn_Data_09(__u8 data[DATA_09_DLC]);
+void fn_Buffer_Ack(__u8 data[BUFFER_ACK_DLC]);
 void fn_Debug(__u8 data[DEBUG_DLC]);
+
+void init_twai();
 
 
 

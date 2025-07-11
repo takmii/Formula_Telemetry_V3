@@ -34,3 +34,6 @@ const __u8 DATA_08_DLC = 8;
 
 const __u8 DATA_09_ID = 0x0A;
 const __u8 DATA_09_DLC = 6;
+
+const __u8 BUFFER_ACK_ID = 0x0B;
+const __u8 BUFFER_ACK_DLC = 1;
