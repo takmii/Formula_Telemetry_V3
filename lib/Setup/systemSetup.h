@@ -34,6 +34,7 @@
 #define SD_TASK_TIMER CAN_TASK_TIMER
 #define SD_FLUSH_TIMER 1000
 #define SD_VERIFY_TIMER 5000
+#define CALIBRACAO_TIMER 500
 
 #define CAN_TX_PIN GPIO_NUM_22
 #define CAN_RX_PIN GPIO_NUM_21
@@ -55,6 +56,7 @@ String verifyFilename(String filename);
 
 void sdTask(void *parameter);
 void sdFlush(void *parameter);
+void Calibracao(void *parameter);
 void sdVerify(void *parameter);
 void CAN_receiveTask(void *parameter);
 void disableBluetooth();

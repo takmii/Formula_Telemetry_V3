@@ -75,7 +75,7 @@ void setup()
   disableBluetooth();
 
   uint16_t init_wifi_time = millis();
-  WiFi.begin(returnSSID(), returnPWD());
+  //WiFi.begin(returnSSID(), returnPWD());
   if (WiFi.status() != WL_CONNECTED)
   {
     while (WiFi.status() != WL_CONNECTED && millis() - init_wifi_time < 2500)
@@ -177,6 +177,16 @@ void setup()
       2048,       // Stack size in words
       NULL,       // Task input parameter
       2,          // Priority of the task
+      NULL,       // Task handle
+      1           // Core where the task should run (0 or 1)
+  );
+
+    xTaskCreatePinnedToCore(
+      Calibracao,    // Function to implement the task
+      "Calibracao", // Name of the task
+      2048,       // Stack size in words
+      NULL,       // Task input parameter
+      1,          // Priority of the task
       NULL,       // Task handle
       1           // Core where the task should run (0 or 1)
   );
@@ -516,10 +526,15 @@ void fn_Data_02(__u8 data[DATA_02_DLC])
   __u16 r_Susp_RR = ((data[4] & 0x0F) << 8) + data[3];
   __u16 r_Susp_RL = (data[5] << 4) + ((data[4] >> 4) & 0x0F);
 
-  sensorUpdate(r_Susp_FR, Susp_Pos_FR_Sensor.index);
-  sensorUpdate(r_Susp_FL, Susp_Pos_FL_Sensor.index);
-  sensorUpdate(r_Susp_RR, Susp_Pos_RR_Sensor.index);
-  sensorUpdate(r_Susp_RL, Susp_Pos_RL_Sensor.index);
+  float Susp_FR = suspSensor(r_Susp_FR);
+  float Susp_FL = (r_Susp_FL);
+  float Susp_RR = (r_Susp_RR);
+  float Susp_RL = (r_Susp_RL);
+
+  sensorUpdate(Susp_FR, Susp_Pos_FR_Sensor.index);
+  sensorUpdate(Susp_FL, Susp_Pos_FL_Sensor.index);
+  sensorUpdate(Susp_RR, Susp_Pos_RR_Sensor.index);
+  sensorUpdate(Susp_RL, Susp_Pos_RL_Sensor.index);
 }
 
 void fn_Data_03(__u8 data[DATA_03_DLC])
@@ -656,5 +671,33 @@ void init_twai()
   {
     printf("Failed to start driver\n");
     return;
+  }
+}
+
+void Calibracao(void *parameter)
+{
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+  const TickType_t xFrequency = pdMS_TO_TICKS(CALIBRACAO_TIMER);
+  for (;;)
+  {
+    uint8_t index = Susp_Pos_FR_Sensor.index;
+    bool print =0;
+    uint8_t time=0;
+    if (row_write==0){
+      while(row_write==0&&time<5){
+        vTaskDelay(pdMS_TO_TICKS(1));
+        time++;
+      }
+    }
+    if (row_write!=0){
+      print =1;
+    }
+    if (print){
+      char *value = sensorValues[buffer_write][row_write-1][index];
+      if (value[0]!='\0'){
+      Serial.println(value);
+      }
+    }
+    vTaskDelay(xFrequency);
   }
 }

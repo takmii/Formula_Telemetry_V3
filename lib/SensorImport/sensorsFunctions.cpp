@@ -23,6 +23,12 @@ float vRefSensor(__u16 value){
   return vRef/A_5_5V * 5.5;
 }
 
+float suspSensor(__u16 value){
+  float a = 0.0446;
+  float b = -25.17;
+  return ((float)value)*a+b;
+}
+
 String Gear_Pos(__u8 value){
     switch(value){
         case 7: 
