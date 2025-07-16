@@ -21,6 +21,8 @@ Sensor Caliper_Pressure_FR_Sensor;
 Sensor Caliper_Pressure_FL_Sensor;
 Sensor Caliper_Pressure_RR_Sensor;
 Sensor Caliper_Pressure_RL_Sensor;
+Sensor F_Brakeline_Pressure;
+Sensor R_Brakeline_Pressure;
 Sensor Throttle_Position_Sensor;
 Sensor Brake_Position_Sensor;
 Sensor Fuel_Pressure_Sensor;
@@ -64,6 +66,8 @@ Sensor *sensorIndex[] = {
     &Caliper_Pressure_FL_Sensor,
     &Caliper_Pressure_RR_Sensor,
     &Caliper_Pressure_RL_Sensor,
+    &F_Brakeline_Pressure,
+    &R_Brakeline_Pressure,
     &Throttle_Position_Sensor,
     &Brake_Position_Sensor,
     &Fuel_Pressure_Sensor,
@@ -119,6 +123,8 @@ void setSensorName()
     Caliper_Pressure_FL_Sensor.name = "Caliper_Press_FL (kPa)";
     Caliper_Pressure_RR_Sensor.name = "Caliper_Press_RR (kPa)";
     Caliper_Pressure_RL_Sensor.name = "Caliper_Press_RL (kPa)";
+    F_Brakeline_Pressure.name = "Brakeline_Pressure_F (kPa)";
+    R_Brakeline_Pressure.name = "Brakeline_Pressure_F (kPa)";
     Throttle_Position_Sensor.name = "TPS (%)";
     Brake_Position_Sensor.name = "Brake (%)";
     Fuel_Pressure_Sensor.name = "Voltage (V)";

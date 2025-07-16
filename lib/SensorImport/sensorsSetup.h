@@ -30,6 +30,8 @@ extern Sensor Disk_Temp_FR_Sensor;
 extern Sensor Disk_Temp_FL_Sensor;
 extern Sensor Disk_Temp_RR_Sensor;
 extern Sensor Disk_Temp_RL_Sensor;
+extern Sensor F_Brakeline_Pressure;
+extern Sensor R_Brakeline_Pressure;
 extern Sensor Caliper_Pressure_FR_Sensor;
 extern Sensor Caliper_Pressure_FL_Sensor;
 extern Sensor Caliper_Pressure_RR_Sensor;

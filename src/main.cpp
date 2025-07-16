@@ -25,6 +25,8 @@ TickType_t now;
 volatile bool flag_sd = 0;
 bool sd_started = 0;
 
+uint32_t verify_Filesize_timer;
+
 bool sd_open = 0;
 bool sd_hold = 0;
 
@@ -49,7 +51,7 @@ RTC_DS3231 rtc;
 void setup()
 {
   memset(sensorValues, 0, sizeof(sensorValues));
-  sdMutex = xSemaphoreCreateRecursiveMutex();
+  sdMutex = xSemaphoreCreateMutex();
   string_flag = 0;
   Wire.begin(25, 26);
 
@@ -75,33 +77,37 @@ void setup()
   disableBluetooth();
 
   uint16_t init_wifi_time = millis();
-  //WiFi.begin(returnSSID(), returnPWD());
+  if(rtc_setup){
+  WiFi.begin(returnSSID(), returnPWD());
   if (WiFi.status() != WL_CONNECTED)
   {
-    while (WiFi.status() != WL_CONNECTED && millis() - init_wifi_time < 2500)
+    while (WiFi.status() != WL_CONNECTED && millis() - init_wifi_time < 5000)
     {
       delay(100);
     }
-    Serial.println("WiFi connected.");
-    if (rtc_setup && rtc_exists)
-    {
-      configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-      time_get = 1;
-      espTime = getTimeBase();
-      setRTC();
-      Serial.print(espTime.day);
-      Serial.print("/");
-      Serial.print(espTime.month);
-      Serial.print("/");
-      Serial.print(espTime.year);
-      Serial.print("  ");
-      Serial.print(espTime.hour);
-      Serial.print(":");
-      Serial.print(espTime.minute);
-      Serial.print(":");
-      Serial.println(espTime.second);
-    }
+    if (WiFi.status() == WL_CONNECTED) {
+  Serial.println("WiFi connected.");
+  if (rtc_setup && rtc_exists)
+  {
+    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+    time_get = 1;
+    espTime = getTimeBase();
+    setRTC();
+    Serial.print(espTime.day);
+    Serial.print("/");
+    Serial.print(espTime.month);
+    Serial.print("/");
+    Serial.print(espTime.year);
+    Serial.print("  ");
+    Serial.print(espTime.hour);
+    Serial.print(":");
+    Serial.print(espTime.minute);
+    Serial.print(":");
+    Serial.println(espTime.second);
   }
+}
+  }
+}
 
   if (WiFi.status() != WL_CONNECTED)
   {
@@ -159,6 +165,7 @@ void setup()
     }
 
     writeHeader(file_.c_str(), sensorLength);
+    verify_Filesize_timer=millis();
   }
 
   xTaskCreatePinnedToCore(
@@ -334,6 +341,19 @@ void sdFlush(void *parameter)
     if (sd_started)
     {
       oFile.flush();
+    }
+    if (millis()-verify_Filesize_timer>SD_VERIFY_FILESIZE_TIMER){
+      verify_Filesize_timer = millis();
+      if (oFile.size()>3500000000){
+        if (xSemaphoreTake(sdMutex, portMAX_DELAY)) {
+        oFile.close();
+        file_ = dir_ + "/" + "test";
+        file_ = verifyFilename(file_);
+        oFile = SD.open(file_.c_str(), FILE_APPEND);
+        writeHeader(file_.c_str(), sensorLength);
+        xSemaphoreGive(sdMutex);
+        }
+      }
     }
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
@@ -525,20 +545,38 @@ void fn_Data_02(__u8 data[DATA_02_DLC])
   __u16 r_Susp_FL = (data[2] << 4) + ((data[1] >> 4) & 0x0F);
   __u16 r_Susp_RR = ((data[4] & 0x0F) << 8) + data[3];
   __u16 r_Susp_RL = (data[5] << 4) + ((data[4] >> 4) & 0x0F);
+  __u16 r_WheelAngle = ((data[7] & 0x0F) << 8) + data[6];
 
   float Susp_FR = suspSensor(r_Susp_FR);
   float Susp_FL = (r_Susp_FL);
   float Susp_RR = (r_Susp_RR);
   float Susp_RL = (r_Susp_RL);
+  float WheelAngle = (r_WheelAngle);
 
   sensorUpdate(Susp_FR, Susp_Pos_FR_Sensor.index);
   sensorUpdate(Susp_FL, Susp_Pos_FL_Sensor.index);
   sensorUpdate(Susp_RR, Susp_Pos_RR_Sensor.index);
   sensorUpdate(Susp_RL, Susp_Pos_RL_Sensor.index);
+  sensorUpdate(WheelAngle, SteerWheel_Pos_Sensor.index);
 }
 
 void fn_Data_03(__u8 data[DATA_03_DLC])
 {
+
+  __u16 r_Hall_FR = ((data[1] & 0x0F) << 8) + data[0];
+  __u16 r_Hall_FL = (data[2] << 4) + ((data[1] >> 4) & 0x0F);
+  __u16 r_Hall_RR = ((data[4] & 0x0F) << 8) + data[3];
+  __u16 r_Hall_RL = (data[5] << 4) + ((data[4] >> 4) & 0x0F);
+
+  float Hall_FR = (r_Hall_FR);
+  float Hall_FL = (r_Hall_FL);
+  float Hall_RR = (r_Hall_RR);
+  float Hall_RL = (r_Hall_RL);
+
+  sensorUpdate(Hall_FR, Wheel_Spd_FR_Sensor.index);
+  sensorUpdate(Hall_FL, Wheel_Spd_FL_Sensor.index);
+  sensorUpdate(Hall_RR, Wheel_Spd_RR_Sensor.index);
+  sensorUpdate(Hall_RL, Wheel_Spd_RL_Sensor.index);
 }
 
 void fn_Data_04(__u8 data[DATA_04_DLC])
@@ -551,6 +589,12 @@ void fn_Data_05(__u8 data[DATA_05_DLC])
 
 void fn_Data_06(__u8 data[DATA_06_DLC])
 {
+  __u16 r_F_BrakelinePress = ((data[4] & 0x0F) << 8) + data[3];
+  __u16 r_R_BrakelinePress = (data[5] << 4) + ((data[4] >> 4) & 0x0F);
+  float F_BrakelinePress = (r_F_BrakelinePress);
+  float R_BrakelinePress = (r_R_BrakelinePress);
+  sensorUpdate(F_BrakelinePress, F_Brakeline_Pressure.index);
+  sensorUpdate(R_BrakelinePress, R_Brakeline_Pressure.index);
 }
 
 void fn_Data_07(__u8 data[DATA_07_DLC])
