@@ -492,6 +492,8 @@ void sendCANMessage(uint8_t id, uint8_t *data, uint8_t dlc){
     esp_err_t result = twai_transmit(&message, pdMS_TO_TICKS(10));
 }
 
+
+
 void CAN_setSensor(const __u8 *canData, __u8 canPacketSize, __u32 canId)
 {
   __u8 pSize = canPacketSize;
@@ -781,11 +783,13 @@ void Calibracao(void *parameter)
 
 void IRAM_ATTR handleEdge(){
   uint32_t now = micros();
+  Serial.println(""); 
   if (n==0){
     rpm_time_first= now;
     rpm_ready=1;
   }
   if (rpm_ready&&n<10){
+   
   n++;
   }
   if(n==10){
@@ -805,8 +809,13 @@ void RPM_task(void *parameter){
   {
     time_rpm=millis();
     bool update = 0;
-    if (rpm_flag){
-    Serial.println("");
+    bool flag;
+    noInterrupts();
+    flag = rpm_flag;
+    interrupts();
+    
+    if (flag){
+    
     r_RPM = 60000000.0/(rpm_time_last-rpm_time_first);
     RPM = (uint16_t)r_RPM;
     n = 0;
@@ -820,6 +829,7 @@ void RPM_task(void *parameter){
       rpm_ready=0;
       rpm_time_zero = time_rpm;
       update=1;
+      rpm_ready=0;
     }
     if (update){
       sensorUpdate(RPM, RPM_Sensor.index);
