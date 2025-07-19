@@ -32,6 +32,8 @@
 #define SD_FREQ_MHZ(mhz) ((uint32_t)(1000000UL * (mhz)))
 
 #define SD_TASK_TIMER CAN_TASK_TIMER
+#define RPM_TIMER CAN_TASK_TIMER
+#define RPM_ZERO_TIMER 15000
 #define SD_FLUSH_TIMER 1000
 #define SD_VERIFY_FILESIZE_TIMER 60000
 #define SD_VERIFY_TIMER 5000
@@ -47,7 +49,7 @@
 #define MAX_SENSORS 42
 #define BUFFER_SIZE 7
 
-
+#define RPM_PIN 32
 
 
 void writeCSV(const char * filename, __u8 size);
@@ -60,6 +62,7 @@ void sdFlush(void *parameter);
 void Calibracao(void *parameter);
 void sdVerify(void *parameter);
 void CAN_receiveTask(void *parameter);
+void RPM_task(void *parameter);
 void disableBluetooth();
 void getRTC();
 void setRTC();
@@ -68,6 +71,7 @@ void writeSDCard();
 
 
 void CAN_setSensor(const __u8 *canData, __u8 canPacketSize,__u32 canId);
+void sendCANMessage(uint8_t id, uint8_t *data, uint8_t dlc);
 
 
 void fn_Messages(__u8 data[MESSAGES_DLC]);
@@ -82,6 +86,8 @@ void fn_Data_08(__u8 data[DATA_08_DLC]);
 void fn_Data_09(__u8 data[DATA_09_DLC]);
 void fn_Buffer_Ack(__u8 data[BUFFER_ACK_DLC]);
 void fn_Debug(__u8 data[DEBUG_DLC]);
+
+void IRAM_ATTR handleEdge();
 
 void init_twai();
 

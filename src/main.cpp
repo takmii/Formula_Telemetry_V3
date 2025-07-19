@@ -11,6 +11,13 @@ uint32_t timeValues[BUFFER_NUMBER][BUFFER_LENGTH];
 
 SemaphoreHandle_t sdMutex;
 
+volatile uint8_t n_rpm = 0;
+volatile bool rpm_ready = 0;
+volatile bool rpm_flag = 0;
+volatile uint32_t rpm_time_first;
+volatile uint32_t rpm_time_last;
+volatile uint32_t rpm_time_zero;
+
 /*SdFat SD;
 SdFile oFile;*/
 File oFile;
@@ -78,7 +85,7 @@ void setup()
 
   uint16_t init_wifi_time = millis();
   if(rtc_setup){
-  WiFi.begin(returnSSID(), returnPWD());
+  //WiFi.begin(returnSSID(), returnPWD());
   if (WiFi.status() != WL_CONNECTED)
   {
     while (WiFi.status() != WL_CONNECTED && millis() - init_wifi_time < 5000)
@@ -168,6 +175,11 @@ void setup()
     verify_Filesize_timer=millis();
   }
 
+  rpm_time_zero=millis();
+
+  pinMode(RPM_PIN,INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(RPM_PIN), handleEdge, FALLING);
+
   xTaskCreatePinnedToCore(
       sdTask,    // Function to implement the task
       "SD Task", // Name of the task
@@ -216,6 +228,16 @@ void setup()
       3,               // Priority
       NULL,            // Task handle
       0                // Core (0 or 1)
+  );
+
+  xTaskCreatePinnedToCore(
+      RPM_task,    // Function to implement the task
+      "RPM Task", // Name of the task
+      2048,       // Stack size in words
+      NULL,       // Task input parameter
+      5,          // Priority of the task
+      NULL,       // Task handle
+      1           // Core where the task should run (0 or 1)
   );
 }
 
@@ -457,6 +479,17 @@ void getRTC()
   espTime.hour = now.hour();
   espTime.minute = now.minute();
   espTime.second = now.second();
+}
+
+void sendCANMessage(uint8_t id, uint8_t *data, uint8_t dlc){
+  twai_message_t message;
+  message.identifier = id;
+  message.flags = 0;
+  message.data_length_code = dlc;
+    for (int i = 0; i < dlc; i++) {
+        message.data[i] = data[i];
+    }
+    esp_err_t result = twai_transmit(&message, pdMS_TO_TICKS(10));
 }
 
 void CAN_setSensor(const __u8 *canData, __u8 canPacketSize, __u32 canId)
@@ -724,7 +757,7 @@ void Calibracao(void *parameter)
   const TickType_t xFrequency = pdMS_TO_TICKS(CALIBRACAO_TIMER);
   for (;;)
   {
-    uint8_t index = Susp_Pos_FR_Sensor.index;
+    uint8_t index = RPM_Sensor.index;
     bool print =0;
     uint8_t time=0;
     if (row_write==0){
@@ -744,4 +777,58 @@ void Calibracao(void *parameter)
     }
     vTaskDelay(xFrequency);
   }
+}
+
+void IRAM_ATTR handleEdge(){
+  uint32_t now = micros();
+  if (n==0){
+    rpm_time_first= now;
+    rpm_ready=1;
+  }
+  if (rpm_ready&&n<10){
+  n++;
+  }
+  if(n==10){
+  rpm_time_last= now;
+  rpm_flag = 1;
+  }
+}
+
+void RPM_task(void *parameter){
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+  const TickType_t xFrequency = pdMS_TO_TICKS(RPM_TIMER);
+  uint32_t time_rpm;
+  float r_RPM;
+  uint16_t RPM;
+
+  for (;;)
+  {
+    time_rpm=millis();
+    bool update = 0;
+    if (rpm_flag){
+    Serial.println("");
+    r_RPM = 60000000.0/(rpm_time_last-rpm_time_first);
+    RPM = (uint16_t)r_RPM;
+    n = 0;
+    rpm_flag = 0;
+    update=1;
+    rpm_ready=0;
+    }
+    else if(time_rpm-rpm_time_zero>RPM_ZERO_TIMER){
+      RPM=0;
+      n=0;
+      rpm_ready=0;
+      rpm_time_zero = time_rpm;
+      update=1;
+    }
+    if (update){
+      sensorUpdate(RPM, RPM_Sensor.index);
+      uint8_t RPM_data[2]={0,0};
+      RPM_data[0] = RPM & 0xFF;
+      RPM_data[1] = (RPM >> 8) & 0x3F;
+      sendCANMessage(RPM_ID, RPM_data, RPM_DLC);
+    }
+    vTaskDelayUntil(&xLastWakeTime, xFrequency);
+}
+
 }

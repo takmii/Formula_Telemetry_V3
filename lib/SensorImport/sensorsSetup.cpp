@@ -4,6 +4,7 @@ Sensor Voltage_Sensor;
 Sensor Internal_Temperature_Sensor;
 Sensor V_Ref_Sensor;
 Sensor Gear_Pos_Sens;
+Sensor RPM_Sensor;
 Sensor Susp_Pos_FR_Sensor;
 Sensor Susp_Pos_FL_Sensor;
 Sensor Susp_Pos_RR_Sensor;
@@ -49,6 +50,7 @@ Sensor *sensorIndex[] = {
     &Internal_Temperature_Sensor,
     &V_Ref_Sensor,
     &Gear_Pos_Sens,
+    &RPM_Sensor,
     &Susp_Pos_FR_Sensor,
     &Susp_Pos_FL_Sensor,
     &Susp_Pos_RR_Sensor,
@@ -106,6 +108,7 @@ void setSensorName()
     Internal_Temperature_Sensor.name = "Int_Temp (ºC)";
     V_Ref_Sensor.name = "Ref_Voltage (V)";
     Gear_Pos_Sens.name = "Gear";
+    RPM_Sensor.name = "RPM";
     Susp_Pos_FR_Sensor.name = "Susp_Pos_FR (º)";
     Susp_Pos_FL_Sensor.name = "Susp_Pos_FL (º)";
     Susp_Pos_RR_Sensor.name = "Susp_Pos_RR (º)";

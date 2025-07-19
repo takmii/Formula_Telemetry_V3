@@ -17,6 +17,7 @@ extern Sensor Voltage_Sensor;
 extern Sensor Internal_Temperature_Sensor;
 extern Sensor V_Ref_Sensor;
 extern Sensor Gear_Pos_Sens;
+extern Sensor RPM_Sensor;
 extern Sensor Susp_Pos_FR_Sensor;
 extern Sensor Susp_Pos_FL_Sensor;
 extern Sensor Susp_Pos_RR_Sensor;

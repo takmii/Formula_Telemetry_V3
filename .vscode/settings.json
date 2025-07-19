@@ -11,6 +11,7 @@
         "vector": "cpp",
         "typeinfo": "cpp",
         "new": "cpp",
-        "cmath": "cpp"
+        "cmath": "cpp",
+        "system_error": "cpp"
     }
 }
