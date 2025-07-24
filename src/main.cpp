@@ -173,7 +173,10 @@ void setup()
 
     writeHeader(file_.c_str(), sensorLength);
     verify_Filesize_timer=millis();
+    
   }
+  pinMode(GPIO_LEDRPM,OUTPUT);
+
 
   rpm_time_zero=millis();
 
@@ -199,6 +202,17 @@ void setup()
       NULL,       // Task handle
       1           // Core where the task should run (0 or 1)
   );
+
+   /* xTaskCreatePinnedToCore(
+      sdFile,    // Function to implement the task
+      "SD File", // Name of the task
+      2048,       // Stack size in words
+      NULL,       // Task input parameter
+      1,          // Priority of the task
+      NULL,       // Task handle
+      1           // Core where the task should run (0 or 1)
+  );*/
+
 
     xTaskCreatePinnedToCore(
       Calibracao,    // Function to implement the task
@@ -345,7 +359,10 @@ void sdTask(void *parameter)
       {
         vTaskDelay(pdMS_TO_TICKS(1));
         buffer_read = !buffer_write;
+        if (xSemaphoreTake(sdMutex, portMAX_DELAY)) {
         writeSDCard();
+        xSemaphoreGive(sdMutex);
+        }
       }
     }
 
@@ -362,11 +379,24 @@ void sdFlush(void *parameter)
   {
     if (sd_started)
     {
+      if (xSemaphoreTake(sdMutex, portMAX_DELAY)) {
       oFile.flush();
+      xSemaphoreGive(sdMutex);
+        }
     }
+    vTaskDelayUntil(&xLastWakeTime, xFrequency);
+  }
+}
+
+/*void sdFile(void *parameter){
+  const uint64_t FILE_LIMIT = 3500000000ULL;
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+  const TickType_t xFrequency = pdMS_TO_TICKS(SD_VERIFY_FILESIZE_TIMER);
+  for (;;)
+  {
     if (millis()-verify_Filesize_timer>SD_VERIFY_FILESIZE_TIMER){
       verify_Filesize_timer = millis();
-      if (oFile.size()>3500000000){
+      if ((uint64_t)oFile.size()>FILE_LIMIT){
         if (xSemaphoreTake(sdMutex, portMAX_DELAY)) {
         oFile.close();
         file_ = dir_ + "/" + "test";
@@ -379,7 +409,7 @@ void sdFlush(void *parameter)
     }
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
-}
+}*/
 
 void sdVerify(void *parameter)
 {
@@ -390,11 +420,13 @@ void sdVerify(void *parameter)
     if (sd_started){
     if (!sd_hold)
     {
+      if (xSemaphoreTake(sdMutex, portMAX_DELAY)) {
       if (!oFile)
       {
         oFile = SD.open(file_.c_str(), FILE_APPEND);
       }
-      
+      xSemaphoreGive(sdMutex);
+        }
     }
   }
   vTaskDelayUntil(&xLastWakeTime, xFrequency);
@@ -705,6 +737,8 @@ void writeSDCard()
         linha += ";"; // separador CSV
       }
       linha += timeValues[buffer_read][l];
+      linha += ";";
+      linha += oFile.size();
       oFile.println(linha);
     }
     // oFile.flush(); // força gravação no cartão SD
@@ -759,6 +793,7 @@ void Calibracao(void *parameter)
   const TickType_t xFrequency = pdMS_TO_TICKS(CALIBRACAO_TIMER);
   for (;;)
   {
+    
     uint8_t index = RPM_Sensor.index;
     bool print =0;
     uint8_t time=0;
@@ -837,6 +872,12 @@ void RPM_task(void *parameter){
       RPM_data[0] = RPM & 0xFF;
       RPM_data[1] = (RPM >> 8) & 0x3F;
       sendCANMessage(RPM_ID, RPM_data, RPM_DLC);
+    }
+    if(RPM>10000){
+      digitalWrite(GPIO_LEDRPM, HIGH);
+    }
+    else{
+      digitalWrite(GPIO_LEDRPM, LOW);
     }
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
 }

@@ -51,6 +51,7 @@
 
 #define RPM_PIN 32
 
+#define GPIO_LEDRPM GPIO_NUM_0
 
 void writeCSV(const char * filename, __u8 size);
 void writeHeader(const char * filename, __u8 size);
@@ -59,6 +60,7 @@ String verifyFilename(String filename);
 
 void sdTask(void *parameter);
 void sdFlush(void *parameter);
+//void sdFile(void *parameter);
 void Calibracao(void *parameter);
 void sdVerify(void *parameter);
 void CAN_receiveTask(void *parameter);
