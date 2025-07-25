@@ -49,6 +49,9 @@ uint8_t row_read = 0;
 bool rtc_exists = 0;
 bool rtc_setup = 0;
 
+const uint8_t MPU_addr = 0x68;
+bool acc_start=0;
+
 QueueHandle_t can_rx_queue;
 
 void fn_Debug(__u8 data[DEBUG_DLC]);
@@ -61,10 +64,18 @@ void setup()
   sdMutex = xSemaphoreCreateMutex();
   string_flag = 0;
   Wire.begin(25, 26);
-
+  Wire.setClock(400000);
+  
   Serial.begin(115200);
   while (!Serial)
   {
+  }
+  Wire.beginTransmission(MPU_addr);
+  Wire.write(0x6B);  // PWR_MGMT_1
+  Wire.write(0);     // Coloca 0 para acordar
+  if(Wire.endTransmission(true)==0){
+    acc_start=1;
+    Serial.println("MPU6050 conectado");
   }
   if (!rtc.begin())
   {
@@ -251,7 +262,17 @@ void setup()
       NULL,       // Task input parameter
       5,          // Priority of the task
       NULL,       // Task handle
-      1           // Core where the task should run (0 or 1)
+      0           // Core where the task should run (0 or 1)
+  );
+
+  xTaskCreatePinnedToCore(
+      AccelGyro_task1,    // Function to implement the task
+      "Accel Gyro Task", // Name of the task
+      2048,       // Stack size in words
+      NULL,       // Task input parameter
+      2,          // Priority of the task
+      NULL,       // Task handle
+      0           // Core where the task should run (0 or 1)
   );
 }
 
@@ -287,6 +308,26 @@ void sensorUpdate(uint64_t value, uint8_t index)
 void sensorUpdate(String value, uint8_t index)
 {
   value.toCharArray(sensorValues[buffer_write][row_write][index], 7);
+}
+
+void sensorUpdate(int8_t value, uint8_t index)
+{
+  snprintf(sensorValues[buffer_write][row_write][index], 7, "%d", value);
+}
+
+void sensorUpdate(int16_t value, uint8_t index)
+{
+  snprintf(sensorValues[buffer_write][row_write][index], 7, "%d", value);
+}
+
+void sensorUpdate(int32_t value, uint8_t index)
+{
+  snprintf(sensorValues[buffer_write][row_write][index], 7, "%ld", (long)value);
+}
+
+void sensorUpdate(int64_t value, uint8_t index)
+{
+  snprintf(sensorValues[buffer_write][row_write][index], 7, "%lld", (long long)value);
 }
 
 void writeHeader(const char *filename, __u8 size)
@@ -615,9 +656,9 @@ void fn_Data_02(__u8 data[DATA_02_DLC])
   __u16 r_WheelAngle = ((data[7] & 0x0F) << 8) + data[6];
 
   float Susp_FR = suspSensor(r_Susp_FR);
-  float Susp_FL = (r_Susp_FL);
-  float Susp_RR = (r_Susp_RR);
-  float Susp_RL = (r_Susp_RL);
+  float Susp_FL = suspSensor(r_Susp_FL);
+  float Susp_RR = suspSensor(r_Susp_RR);
+  float Susp_RL = suspSensor(r_Susp_RL);
   float WheelAngle = (r_WheelAngle);
 
   sensorUpdate(Susp_FR, Susp_Pos_FR_Sensor.index);
@@ -882,4 +923,36 @@ void RPM_task(void *parameter){
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
 }
 
+}
+
+void AccelGyro_task1(void *parameter){
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+  const TickType_t xFrequency = pdMS_TO_TICKS(ACC_TIMER);
+
+  int16_t AcX, AcY, AcZ;
+  int16_t GyX, GyY, GyZ;
+  for (;;)
+  {
+    if (acc_start){
+      Wire.beginTransmission(MPU_addr);
+      Wire.write(0x3B); // Endereço do primeiro registrador de dados
+    Wire.endTransmission(false);
+    Wire.requestFrom(MPU_addr, 14, true);
+
+    AcX = Wire.read() << 8 | Wire.read();
+    sensorUpdate(AcX,Accel_X.index);
+    AcY = Wire.read() << 8 | Wire.read();
+    sensorUpdate(AcY,Accel_Y.index);
+    AcZ = Wire.read() << 8 | Wire.read();
+    sensorUpdate(AcZ,Accel_Z.index);
+    Wire.read(); Wire.read(); // Temperatura (ignorada)
+    GyX = Wire.read() << 8 | Wire.read();
+    sensorUpdate(GyX,Gyro_X.index);
+    GyY = Wire.read() << 8 | Wire.read();
+    sensorUpdate(GyY,Gyro_Y.index);
+    GyZ = Wire.read() << 8 | Wire.read();
+    sensorUpdate(GyZ,Gyro_Z.index);
+    } 
+    vTaskDelay(xFrequency);
+  }
 }

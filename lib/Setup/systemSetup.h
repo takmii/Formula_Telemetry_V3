@@ -38,6 +38,7 @@
 #define SD_VERIFY_FILESIZE_TIMER 60000
 #define SD_VERIFY_TIMER 5000
 #define CALIBRACAO_TIMER 500
+#define ACC_TIMER CAN_TASK_TIMER
 
 #define CAN_TX_PIN GPIO_NUM_22
 #define CAN_RX_PIN GPIO_NUM_21
@@ -65,6 +66,7 @@ void Calibracao(void *parameter);
 void sdVerify(void *parameter);
 void CAN_receiveTask(void *parameter);
 void RPM_task(void *parameter);
+void AccelGyro_task1(void *parameter);
 void disableBluetooth();
 void getRTC();
 void setRTC();
