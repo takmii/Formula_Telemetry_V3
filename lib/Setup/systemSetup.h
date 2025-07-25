@@ -47,7 +47,7 @@
 
 #define BUFFER_LENGTH TIMEBASE/SD_TASK_TIMER
 #define BUFFER_NUMBER 2
-#define MAX_SENSORS 42
+#define MAX_SENSORS 55
 #define BUFFER_SIZE 7
 
 #define RPM_PIN 32
@@ -94,6 +94,8 @@ void fn_Debug(__u8 data[DEBUG_DLC]);
 void IRAM_ATTR handleEdge();
 
 void init_twai();
+
+TwoWire I2C_MPU6050 = TwoWire(1);
 
 
 

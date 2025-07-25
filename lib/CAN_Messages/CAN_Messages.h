@@ -38,5 +38,11 @@ const __u8 DATA_09_DLC = 6;
 const __u8 RPM_ID = 0x0F;
 const __u8 RPM_DLC = 2;
 
+const __u8 ACC_ID = 0x10;
+const __u8 ACC_DLC = 6;
+
+const __u8 GYRO_ID = 0x11;
+const __u8 GYRO_DLC = 6;
+
 const __u8 BUFFER_ACK_ID = 0x0B;
 const __u8 BUFFER_ACK_DLC = 1;

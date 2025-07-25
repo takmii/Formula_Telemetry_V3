@@ -65,15 +65,17 @@ void setup()
   string_flag = 0;
   Wire.begin(25, 26);
   Wire.setClock(400000);
-  
+  I2C_MPU6050.begin(4,5);
+  I2C_MPU6050.setClock(400000);
+
   Serial.begin(115200);
   while (!Serial)
   {
   }
-  Wire.beginTransmission(MPU_addr);
-  Wire.write(0x6B);  // PWR_MGMT_1
-  Wire.write(0);     // Coloca 0 para acordar
-  if(Wire.endTransmission(true)==0){
+  I2C_MPU6050.beginTransmission(MPU_addr);
+  I2C_MPU6050.write(0x6B);  // PWR_MGMT_1
+  I2C_MPU6050.write(0);     // Coloca 0 para acordar
+  if(I2C_MPU6050.endTransmission(true)==0){
     acc_start=1;
     Serial.println("MPU6050 conectado");
   }
@@ -197,7 +199,7 @@ void setup()
   xTaskCreatePinnedToCore(
       sdTask,    // Function to implement the task
       "SD Task", // Name of the task
-      4096,      // Stack size in words
+      8192,      // Stack size in words
       NULL,      // Task input parameter
       1,         // Priority of the task
       NULL,      // Task handle
@@ -779,7 +781,7 @@ void writeSDCard()
       }
       linha += timeValues[buffer_read][l];
       linha += ";";
-      linha += oFile.size();
+      linha += String(buffer_read);
       oFile.println(linha);
     }
     // oFile.flush(); // força gravação no cartão SD
@@ -834,7 +836,8 @@ void Calibracao(void *parameter)
   const TickType_t xFrequency = pdMS_TO_TICKS(CALIBRACAO_TIMER);
   for (;;)
   {
-    
+    //Serial.println(xPortGetFreeHeapSize());
+
     uint8_t index = RPM_Sensor.index;
     bool print =0;
     uint8_t time=0;
@@ -931,28 +934,52 @@ void AccelGyro_task1(void *parameter){
 
   int16_t AcX, AcY, AcZ;
   int16_t GyX, GyY, GyZ;
+  uint8_t AccData[8];
+  uint8_t GyroData[8];
   for (;;)
   {
     if (acc_start){
-      Wire.beginTransmission(MPU_addr);
-      Wire.write(0x3B); // Endereço do primeiro registrador de dados
-    Wire.endTransmission(false);
-    Wire.requestFrom(MPU_addr, 14, true);
+      I2C_MPU6050.beginTransmission(MPU_addr);
+      I2C_MPU6050.write(0x3B); // Endereço do primeiro registrador de dados
+    I2C_MPU6050.endTransmission(false);
+    I2C_MPU6050.requestFrom(MPU_addr, 14, true);
 
-    AcX = Wire.read() << 8 | Wire.read();
+    AcX = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
     sensorUpdate(AcX,Accel_X.index);
-    AcY = Wire.read() << 8 | Wire.read();
+    AcY = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
     sensorUpdate(AcY,Accel_Y.index);
-    AcZ = Wire.read() << 8 | Wire.read();
+    AcZ = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
     sensorUpdate(AcZ,Accel_Z.index);
-    Wire.read(); Wire.read(); // Temperatura (ignorada)
-    GyX = Wire.read() << 8 | Wire.read();
+    I2C_MPU6050.read(); I2C_MPU6050.read(); // Temperatura (ignorada)
+    GyX = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
     sensorUpdate(GyX,Gyro_X.index);
-    GyY = Wire.read() << 8 | Wire.read();
+    GyY = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
     sensorUpdate(GyY,Gyro_Y.index);
-    GyZ = Wire.read() << 8 | Wire.read();
+    GyZ = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
     sensorUpdate(GyZ,Gyro_Z.index);
-    } 
+
+      AccData[0] = AcX & 0xFF;
+      AccData[1] = (AcX >> 8) & 0xFF;
+      AccData[2] = AcY & 0xFF;
+      AccData[3] = (AcY >> 8) & 0xFF;
+      AccData[4] = AcZ & 0xFF;
+      AccData[5] = (AcZ >> 8) & 0xFF;
+      AccData[6] = 0;
+      AccData[7] = 0;
+
+      sendCANMessage(ACC_ID, AccData, ACC_DLC);
+
+      GyroData[0] = GyX & 0xFF;
+      GyroData[1] = (GyX >> 8) & 0xFF;
+      GyroData[2] = GyY & 0xFF;
+      GyroData[3] = (GyY >> 8) & 0xFF;
+      GyroData[4] = GyZ & 0xFF;
+      GyroData[5] = (GyZ >> 8) & 0xFF;
+      GyroData[6] = 0;
+      GyroData[7] = 0;
+
+      sendCANMessage(GYRO_ID, GyroData, GYRO_DLC);
+    }
     vTaskDelay(xFrequency);
   }
 }

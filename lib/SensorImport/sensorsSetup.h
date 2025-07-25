@@ -9,6 +9,7 @@
 
 class Sensor {
     public:
+      String value ="$";
       String name;
       __u8 index;
     };
