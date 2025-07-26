@@ -9,6 +9,7 @@ SPIClass SD_SPI;
 char sensorValues[BUFFER_NUMBER][BUFFER_LENGTH][MAX_SENSORS][BUFFER_SIZE];
 uint32_t timeValues[BUFFER_NUMBER][BUFFER_LENGTH];
 
+
 SemaphoreHandle_t sdMutex;
 
 volatile uint8_t n_rpm = 0;
@@ -49,7 +50,7 @@ uint8_t row_read = 0;
 bool rtc_exists = 0;
 bool rtc_setup = 0;
 
-const uint8_t MPU_addr = 0x68;
+
 bool acc_start=0;
 
 QueueHandle_t can_rx_queue;
@@ -72,12 +73,13 @@ void setup()
   while (!Serial)
   {
   }
-  I2C_MPU6050.beginTransmission(MPU_addr);
-  I2C_MPU6050.write(0x6B);  // PWR_MGMT_1
-  I2C_MPU6050.write(0);     // Coloca 0 para acordar
-  if(I2C_MPU6050.endTransmission(true)==0){
+
+  mpu.initialize();
+  if(mpu.testConnection()){
     acc_start=1;
     Serial.println("MPU6050 conectado");
+    mpu.CalibrateAccel(6);
+    mpu.CalibrateGyro(6);
   }
   if (!rtc.begin())
   {
@@ -837,6 +839,7 @@ void Calibracao(void *parameter)
   for (;;)
   {
     //Serial.println(xPortGetFreeHeapSize());
+    Serial.println(mpu.getFullScaleAccelRange());
 
     uint8_t index = RPM_Sensor.index;
     bool print =0;
@@ -939,24 +942,33 @@ void AccelGyro_task1(void *parameter){
   for (;;)
   {
     if (acc_start){
-      I2C_MPU6050.beginTransmission(MPU_addr);
+      /*I2C_MPU6050.beginTransmission(MPU_addr);
       I2C_MPU6050.write(0x3B); // Endereço do primeiro registrador de dados
     I2C_MPU6050.endTransmission(false);
     I2C_MPU6050.requestFrom(MPU_addr, 14, true);
 
     AcX = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
-    sensorUpdate(AcX,Accel_X.index);
+    
     AcY = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
-    sensorUpdate(AcY,Accel_Y.index);
+    
     AcZ = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
-    sensorUpdate(AcZ,Accel_Z.index);
+    
     I2C_MPU6050.read(); I2C_MPU6050.read(); // Temperatura (ignorada)
     GyX = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
-    sensorUpdate(GyX,Gyro_X.index);
+    
     GyY = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
-    sensorUpdate(GyY,Gyro_Y.index);
+    
     GyZ = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
-    sensorUpdate(GyZ,Gyro_Z.index);
+    
+    */
+
+      mpu.getMotion6(&AcX, &AcY, &AcZ, &GyX, &GyY, &GyZ);
+      sensorUpdate(AcX,Accel_X.index);
+      sensorUpdate(AcY,Accel_Y.index);
+      sensorUpdate(AcZ,Accel_Z.index);
+      sensorUpdate(GyX,Gyro_X.index);
+      sensorUpdate(GyY,Gyro_Y.index);
+      sensorUpdate(GyZ,Gyro_Z.index);
 
       AccData[0] = AcX & 0xFF;
       AccData[1] = (AcX >> 8) & 0xFF;

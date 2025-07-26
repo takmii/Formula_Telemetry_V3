@@ -4,6 +4,8 @@
 //#include <SdFat.h>
 #include <Wire.h>
 #include <RTClib.h>
+#include <I2Cdev.h>
+#include <MPU6050.h>
 #include <SD.h>
 #include <SPI.h>
 #include <pins.h>
@@ -96,6 +98,8 @@ void IRAM_ATTR handleEdge();
 void init_twai();
 
 TwoWire I2C_MPU6050 = TwoWire(1);
+const uint8_t MPU_addr = 0x68;
+MPU6050 mpu(MPU_addr,&I2C_MPU6050);
 
 
 

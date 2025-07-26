@@ -77,5 +77,7 @@ float vBatSensor(__u16 value);
 float vRefSensor(__u16 value);
 float suspSensor(__u16 value);
 unsigned short degreesofPrecision(uint16_t data, float max_Value, float decimal);
+signed short AccAxisCalibration();
+signed short GyroAxisCalibration();
 
 #endif
