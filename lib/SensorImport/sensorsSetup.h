@@ -27,6 +27,7 @@ extern Sensor SteerWheel_Pos_Sensor;
 extern Sensor Accel_X;
 extern Sensor Accel_Y;
 extern Sensor Accel_Z;
+extern Sensor Accel;
 extern Sensor Gyro_X;
 extern Sensor Gyro_Y;
 extern Sensor Gyro_Z;

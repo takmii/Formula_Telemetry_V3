@@ -50,6 +50,7 @@ uint8_t row_read = 0;
 bool rtc_exists = 0;
 bool rtc_setup = 0;
 
+bool time_set_ack = 0;
 
 bool acc_start=0;
 
@@ -74,12 +75,30 @@ void setup()
   {
   }
 
-  mpu.initialize();
-  if(mpu.testConnection()){
+  I2C_MPU6050.beginTransmission(0x68);
+  if(I2C_MPU6050.endTransmission()==0){
     acc_start=1;
     Serial.println("MPU6050 conectado");
-    mpu.CalibrateAccel(6);
-    mpu.CalibrateGyro(6);
+
+    I2C_MPU6050.beginTransmission(MPU_addr);
+    I2C_MPU6050.write(0x6B); // PWR_MGMT_1
+    I2C_MPU6050.write(0x00); // Desativa o modo de sleep
+    I2C_MPU6050.endTransmission();
+
+    I2C_MPU6050.beginTransmission(MPU_addr);
+    I2C_MPU6050.write(0x1A);
+    I2C_MPU6050.write(0x05);
+    I2C_MPU6050.endTransmission();
+
+    I2C_MPU6050.beginTransmission(MPU_addr);
+    I2C_MPU6050.write(0x1B);
+    I2C_MPU6050.write(0x08);
+    I2C_MPU6050.endTransmission();
+
+    I2C_MPU6050.beginTransmission(MPU_addr);
+    I2C_MPU6050.write(0x1C);
+    I2C_MPU6050.write(0x00);
+    I2C_MPU6050.endTransmission();
   }
   if (!rtc.begin())
   {
@@ -615,6 +634,12 @@ void CAN_setSensor(const __u8 *canData, __u8 canPacketSize, __u32 canId)
     fn_Buffer_Ack(data);
     break;
 
+  case TIMESET_ACK_ID:
+    if (data[0]==1){
+      time_set_ack = 1;
+    }
+    break;
+
   case DEBUG_ID:
     fn_Debug(data);
     break;
@@ -836,10 +861,30 @@ void Calibracao(void *parameter)
 {
   TickType_t xLastWakeTime = xTaskGetTickCount();
   const TickType_t xFrequency = pdMS_TO_TICKS(CALIBRACAO_TIMER);
+  static uint8_t TimeSet_Data[TIMESET_DLC];
   for (;;)
   {
     //Serial.println(xPortGetFreeHeapSize());
-    Serial.println(mpu.getFullScaleAccelRange());
+
+    if (!time_set_ack){
+      uint8_t day = espTime.day;
+      uint8_t month = espTime.month;
+      uint16_t year = espTime.year;
+      uint8_t hour = espTime.hour;  
+      uint8_t minute = espTime.minute;
+      uint8_t second = espTime.second;
+      TimeSet_Data[0] = day&0x1F;
+      TimeSet_Data[0]|= ((month&0x0F)<<5);
+      TimeSet_Data[1] = (month>>3)&0x01;
+      TimeSet_Data[1]|= (year&0X7F)<<1;
+      TimeSet_Data[2] = (year>>7)&0x1F;
+      TimeSet_Data[2] |= (hour&0x07)<<5;
+      TimeSet_Data[3] = (hour>>3)&0x03;
+      TimeSet_Data[3]|= (minute&0x3F)<<2;
+      TimeSet_Data[4] = second&0x3F;
+
+      sendCANMessage(TIMESET_ID, TimeSet_Data, TIMESET_DLC);
+    }
 
     uint8_t index = RPM_Sensor.index;
     bool print =0;
@@ -936,39 +981,68 @@ void AccelGyro_task1(void *parameter){
   const TickType_t xFrequency = pdMS_TO_TICKS(ACC_TIMER);
 
   int16_t AcX, AcY, AcZ;
+  int16_t AcXf, AcYf, AcZf;
+  AcXf=0;
+  AcYf=0;
+  AcZf=2457;
+  int16_t AcMod;
   int16_t GyX, GyY, GyZ;
   uint8_t AccData[8];
   uint8_t GyroData[8];
+  float roll_rate = 1.3;
+  float pitch_rate = -3.25;
+  float yaw_rate = -1.12;
+  float RateRoll,RatePitch,RateYaw;
+  float aX,aY,aZ;
+  float aMod;
+
   for (;;)
   {
     if (acc_start){
-      /*I2C_MPU6050.beginTransmission(MPU_addr);
-      I2C_MPU6050.write(0x3B); // Endereço do primeiro registrador de dados
+    
+
+    I2C_MPU6050.beginTransmission(MPU_addr);
+    I2C_MPU6050.write(0x3B); // Endereço do primeiro registrador de dados
     I2C_MPU6050.endTransmission(false);
     I2C_MPU6050.requestFrom(MPU_addr, 14, true);
 
     AcX = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
-    
+    AcX+=AcXf;
     AcY = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
-    
+    AcY+=AcYf;
     AcZ = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
-    
+    AcZ+=AcZf;
     I2C_MPU6050.read(); I2C_MPU6050.read(); // Temperatura (ignorada)
     GyX = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
     
     GyY = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
     
     GyZ = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
-    
-    */
 
-      mpu.getMotion6(&AcX, &AcY, &AcZ, &GyX, &GyY, &GyZ);
-      sensorUpdate(AcX,Accel_X.index);
-      sensorUpdate(AcY,Accel_Y.index);
-      sensorUpdate(AcZ,Accel_Z.index);
-      sensorUpdate(GyX,Gyro_X.index);
-      sensorUpdate(GyY,Gyro_Y.index);
-      sensorUpdate(GyZ,Gyro_Z.index);
+    RateRoll=(float)GyX/65.5;
+    RatePitch=(float)GyY/65.5;
+    RateYaw=(float)GyZ/65.5;
+
+    RateRoll-=roll_rate;
+    RatePitch-=pitch_rate;
+    RateYaw-=yaw_rate;
+
+    aX = (float)AcX/16384;
+    aY = (float)AcY/16384;
+    aZ = (float)AcZ/16384;
+
+    AcMod = (int16_t)sqrt((double)((int32_t)AcX * AcX + (int32_t)AcY * AcY + (int32_t)AcZ * AcZ));
+    aMod = (float)AcMod/16384;
+
+    
+    
+    sensorUpdate(AcX,Accel_X.index);
+    sensorUpdate(AcY,Accel_Y.index);
+    sensorUpdate(AcZ,Accel_Z.index);
+    sensorUpdate(aMod,Accel.index);
+    sensorUpdate(RateRoll,Gyro_X.index);
+    sensorUpdate(RatePitch,Gyro_Y.index);
+    sensorUpdate(RateYaw,Gyro_Z.index);
 
       AccData[0] = AcX & 0xFF;
       AccData[1] = (AcX >> 8) & 0xFF;
@@ -976,8 +1050,8 @@ void AccelGyro_task1(void *parameter){
       AccData[3] = (AcY >> 8) & 0xFF;
       AccData[4] = AcZ & 0xFF;
       AccData[5] = (AcZ >> 8) & 0xFF;
-      AccData[6] = 0;
-      AccData[7] = 0;
+      AccData[6] = AcMod & 0xFF;
+      AccData[7] = (AcMod >> 8) & 0xFF;
 
       sendCANMessage(ACC_ID, AccData, ACC_DLC);
 

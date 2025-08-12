@@ -13,6 +13,7 @@ Sensor SteerWheel_Pos_Sensor;
 Sensor Accel_X;
 Sensor Accel_Y;
 Sensor Accel_Z;
+Sensor Accel;
 Sensor Gyro_X;
 Sensor Gyro_Y;
 Sensor Gyro_Z;
@@ -65,6 +66,7 @@ Sensor *sensorIndex[] = {
     &Accel_X,
     &Accel_Y,
     &Accel_Z,
+    &Accel,
     &Gyro_X,
     &Gyro_Y,
     &Gyro_Z,
@@ -126,12 +128,13 @@ void setSensorName()
     Susp_Pos_RR_Sensor.name = "Susp_Pos_RR (º)";
     Susp_Pos_RL_Sensor.name = "Susp_Pos_RL (º)";
     SteerWheel_Pos_Sensor.name = "SteerWheel (º)";
-    Accel_X.name = "Accel (X)";
-    Accel_Y.name = "Accel (Y)";
-    Accel_Z.name = "Accel (Z)";
-    Gyro_X.name = "Gyro (X)";
-    Gyro_Y.name = "Gyro (Y)";
-    Gyro_Z.name = "Gyro (Z)";
+    Accel_X.name = "Accel_X (m/s^2)";
+    Accel_Y.name = "Accel_Y (m/s^2)";
+    Accel_Z.name = "Accel_Z (m/s^2)";
+    Accel.name = "Accel_Mod (m/s^2)";
+    Gyro_X.name = "Roll (°/s)";
+    Gyro_Y.name = "Pitch (°/s)";
+    Gyro_Z.name = "Yaw (°/s)";
     Wheel_Spd_FR_Sensor.name = "Wheel_SPD_FR (km/h)";
     Wheel_Spd_FL_Sensor.name = "Wheel_SPD_FL (km/h)";
     Wheel_Spd_RR_Sensor.name = "Wheel_SPD_RR (km/h)";
