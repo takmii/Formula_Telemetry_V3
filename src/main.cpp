@@ -665,15 +665,13 @@ void fn_Data_01(__u8 data[DATA_01_DLC])
 
   float vBat = vBatSensor(r_vBat);
   float vRef = vRefSensor(r_vRef);
+  float intTemp = internalTemp(r_intTemp);
   String Gear = Gear_Pos(r_Gear);
 
   sensorUpdate(vBat, Voltage_Sensor.index);
+  sensorUpdate(intTemp, Internal_Temperature_Sensor.index);
   sensorUpdate(vRef, V_Ref_Sensor.index);
   sensorUpdate(Gear, Gear_Pos_Sens.index);
-
-  /*Serial.print(r_Gear);
-  Serial.print(" ");*/
-  // Serial.println((xTaskGetTickCount() * 1000) / configTICK_RATE_HZ);
 }
 
 void fn_Data_02(__u8 data[DATA_02_DLC])

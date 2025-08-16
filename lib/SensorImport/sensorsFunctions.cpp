@@ -23,6 +23,20 @@ float vRefSensor(__u16 value){
   return vRef/A_5_5V * 5.5;
 }
 
+float internalTemp(__u16 value){
+  static const double Acoef = 8.6883e-4;
+  static const double Bcoef = 2.5472e-4;
+  static const double Ccoef = 1.7806e-7;
+  static const double R = 1000.0;
+  double Rntc = R * ((double)value / (4095.0 - (double)value));
+  double lnR = log(Rntc);
+  double invT = Acoef + Bcoef * lnR + Ccoef * lnR * lnR * lnR;
+  double T = 1.0 / invT;    // Kelvin
+  float tempC = (float)(T - 273.15); // Celsius
+  tempC = roundf(tempC * 10.0f) / 10.0f; // Arredonda para 1 decimal
+  return tempC;
+}
+
 float suspSensor(__u16 value){
   float a = 0.0446;
   float b = -25.17;
