@@ -1,6 +1,8 @@
 #include <sensorsSetup.h>
 #include <variables.h>
 
+__u16 vRef_=1;
+
 float LinearSensor(__u16 value, float a, float b){
   return a*float(value)+b;
 }
@@ -19,6 +21,7 @@ float vBatSensor(__u16 value){
 
 float vRefSensor(__u16 value){
   __u16 dop = degreesofPrecision(value,3.3,0.1);
+  vRef_ = dop;
   float vRef = (float) dop * A_5_5V / 4095;
   return vRef/A_5_5V * 5.5;
 }
@@ -38,9 +41,15 @@ float internalTemp(__u16 value){
 }
 
 float suspSensor(__u16 value){
-  float a = 0.0446;
-  float b = -25.17;
-  return ((float)value)*a+b;
+  float prop = vRef_Proportion(value);
+  float middle =0;
+  return roundf(((prop*120) - middle) * 10.0f) / 10.0f;
+}
+
+float wheelAngleSensor(__u16 value){
+  float prop = vRef_Proportion(value);
+  float middle =0;
+  return roundf(((prop*360) - middle) * 10.0f) / 10.0f;
 }
 
 String Gear_Pos(__u8 value){
@@ -74,4 +83,8 @@ unsigned short degreesofPrecision(uint16_t data, float max_Value, float decimal)
   float factor = decimal/max_Value;
   uint16_t arred = 4095.0 * factor;
   return (data/arred)*arred;
+}
+
+float vRef_Proportion(uint16_t data){
+  return (float)data/vRef_;
 }

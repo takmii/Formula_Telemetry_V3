@@ -686,7 +686,7 @@ void fn_Data_02(__u8 data[DATA_02_DLC])
   float Susp_FL = suspSensor(r_Susp_FL);
   float Susp_RR = suspSensor(r_Susp_RR);
   float Susp_RL = suspSensor(r_Susp_RL);
-  float WheelAngle = (r_WheelAngle);
+  float WheelAngle = wheelAngleSensor(r_WheelAngle);
 
   sensorUpdate(Susp_FR, Susp_Pos_FR_Sensor.index);
   sensorUpdate(Susp_FL, Susp_Pos_FL_Sensor.index);

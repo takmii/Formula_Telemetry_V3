@@ -71,6 +71,7 @@ extern Sensor* sensorIndex[];
 __u8 indexSetup();
 void setSensorName();
 
+float vRef_Proportion(uint16_t data);
 String Gear_Pos(__u8 value);
 float LinearSensor(__u16 value, float a, float b);
 float TempSensor (__u16 value, __u32 R1, __u32 R2, float c1, float c2, float c3);
@@ -78,6 +79,7 @@ float vBatSensor(__u16 value);
 float vRefSensor(__u16 value);
 float internalTemp(__u16 value);
 float suspSensor(__u16 value);
+float wheelAngleSensor(__u16 value);
 unsigned short degreesofPrecision(uint16_t data, float max_Value, float decimal);
 signed short AccAxisCalibration();
 signed short GyroAxisCalibration();
