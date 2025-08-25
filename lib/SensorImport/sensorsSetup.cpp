@@ -36,6 +36,7 @@ Sensor Brake_Position_Sensor;
 Sensor Fuel_Pressure_Sensor;
 Sensor Fuel_Temperature_Sensor;
 Sensor Oil_Temperature_Sensor;
+Sensor Oil_Pressure_Sensor;
 Sensor Intercooler_Temperature_Sensor;
 Sensor Intercooler_Pressure_Sensor;
 Sensor In_Cooling_Temperature_Sensor;
@@ -44,7 +45,8 @@ Sensor MAP_Sensor;
 Sensor MAF_Sensor;
 Sensor Cylinder_1_Pressure_Sensor;
 Sensor Cylinder_2_Pressure_Sensor;
-Sensor Firewall_Temperature_Sensor;
+Sensor Firewall_Temperature1_Sensor;
+Sensor Firewall_Temperature2_Sensor;
 Sensor Wing_Extensometer_1_Sensor;
 Sensor Wing_Extensometer_2_Sensor;
 Sensor Wing_Extensometer_3_Sensor;
@@ -89,6 +91,7 @@ Sensor *sensorIndex[] = {
     &Fuel_Pressure_Sensor,
     &Fuel_Temperature_Sensor,
     &Oil_Temperature_Sensor,
+    &Oil_Pressure_Sensor,
     &Intercooler_Temperature_Sensor,
     &Intercooler_Pressure_Sensor,
     &In_Cooling_Temperature_Sensor,
@@ -97,7 +100,8 @@ Sensor *sensorIndex[] = {
     &MAF_Sensor,
     &Cylinder_1_Pressure_Sensor,
     &Cylinder_2_Pressure_Sensor,
-    &Firewall_Temperature_Sensor,
+    &Firewall_Temperature1_Sensor,
+    &Firewall_Temperature2_Sensor,
     &Wing_Extensometer_1_Sensor,
     &Wing_Extensometer_2_Sensor,
     &Wing_Extensometer_3_Sensor,
@@ -154,6 +158,7 @@ void setSensorName()
     Fuel_Pressure_Sensor.name = "Voltage (V)";
     Fuel_Temperature_Sensor.name = "Fuel_Temp (ºC)";
     Oil_Temperature_Sensor.name = "Oil_Temp (ºC)";
+    Oil_Pressure_Sensor.name = "Oil_Press (bar)";
     Intercooler_Temperature_Sensor.name = "Intercooler_In_Temp (ºC)";
     Intercooler_Pressure_Sensor.name = "Intercooler_Out_Temp (ºC)";
     In_Cooling_Temperature_Sensor.name = "Cooling_In_Temp (ºC)";
@@ -162,7 +167,8 @@ void setSensorName()
     MAF_Sensor.name = "MAF (mm^3/s)";
     Cylinder_1_Pressure_Sensor.name = "Cylinder_1_Press (kPa)";
     Cylinder_2_Pressure_Sensor.name = "Cylinder_2_Press (kPa)";
-    Firewall_Temperature_Sensor.name = "Firewall_Temp (ºC)";
+    Firewall_Temperature1_Sensor.name = "Firewall_Temp_1 (ºC)";
+    Firewall_Temperature2_Sensor.name = "Firewall_Temp_2 (ºC)";
     Wing_Extensometer_1_Sensor.name = "Wing_Ext_1 (mm)";
     Wing_Extensometer_2_Sensor.name = "Wing_Ext_2 (mm)";
     Wing_Extensometer_3_Sensor.name = "Wing_Ext_3 (mm)";

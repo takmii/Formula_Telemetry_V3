@@ -22,8 +22,8 @@ float vBatSensor(__u16 value){
 float vRefSensor(__u16 value){
   __u16 dop = degreesofPrecision(value,3.3,0.1);
   vRef_ = dop;
-  float vRef = (float) dop * A_5_5V / 4095;
-  return vRef/A_5_5V * 5.5;
+  float vRefProp = (float) dop / 4095;
+  return vRefProp * VRefMax;
 }
 
 float internalTemp(__u16 value){
@@ -86,5 +86,12 @@ unsigned short degreesofPrecision(uint16_t data, float max_Value, float decimal)
 }
 
 float vRef_Proportion(uint16_t data){
-  return (float)data/vRef_;
+  return ((float)data / vRef_ >= 1.0f) ? 1.0f : (float)data / vRef_;
+}
+
+float U16toFloat(uint16_t value, uint8_t precision_bits){
+    uint16_t scale = 1 << precision_bits;                // 2^precision_bits
+    uint16_t intPart = value >> precision_bits;          // parte inteira
+    uint16_t fracPart = value & (scale - 1);             // parte fracionária em "steps"
+    return (float)intPart + ((float)fracPart / scale);   // reconstrução
 }

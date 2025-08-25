@@ -6,6 +6,7 @@
 #define V_4095 3.3
 #define A_20V 24818
 #define A_5_5V 6825
+const float VRefMax = 5.1615;
 
 class Sensor {
     public:
@@ -13,6 +14,29 @@ class Sensor {
       String name;
       __u8 index;
     };
+
+  class SW_Settings{
+      public:
+      float center;
+      uint8_t mValue;
+      uint8_t dValue;
+      bool hypotheticalZone; // Hipótese de estar no lado esquerdo
+      bool rightZone;
+      bool bRightZone;
+      bool bLeftZone;
+      bool leftZone;
+      bool initialValue;
+
+      SW_Settings(float centerDeg,uint8_t mVal)
+        : mValue(mVal), center(centerDeg) {
+        dValue = 180 - mValue;
+    }
+
+
+
+  };
+
+extern SW_Settings SteeringWheel;
 
 extern Sensor Voltage_Sensor;
 extern Sensor Internal_Temperature_Sensor;
@@ -50,6 +74,7 @@ extern Sensor Brake_Position_Sensor;
 extern Sensor Fuel_Pressure_Sensor;
 extern Sensor Fuel_Temperature_Sensor;
 extern Sensor Oil_Temperature_Sensor;
+extern Sensor Oil_Pressure_Sensor;
 extern Sensor Intercooler_Temperature_Sensor;
 extern Sensor Intercooler_Pressure_Sensor;
 extern Sensor In_Cooling_Temperature_Sensor;
@@ -58,7 +83,8 @@ extern Sensor MAP_Sensor;
 extern Sensor MAF_Sensor;
 extern Sensor Cylinder_1_Pressure_Sensor;
 extern Sensor Cylinder_2_Pressure_Sensor;
-extern Sensor Firewall_Temperature_Sensor;
+extern Sensor Firewall_Temperature1_Sensor;
+extern Sensor Firewall_Temperature2_Sensor;
 extern Sensor Wing_Extensometer_1_Sensor;
 extern Sensor Wing_Extensometer_2_Sensor;
 extern Sensor Wing_Extensometer_3_Sensor;
@@ -83,5 +109,7 @@ float wheelAngleSensor(__u16 value);
 unsigned short degreesofPrecision(uint16_t data, float max_Value, float decimal);
 signed short AccAxisCalibration();
 signed short GyroAxisCalibration();
+
+float U16toFloat(uint16_t value, uint8_t precision_bits);
 
 #endif

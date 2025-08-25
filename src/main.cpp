@@ -644,6 +644,10 @@ void CAN_setSensor(const __u8 *canData, __u8 canPacketSize, __u32 canId)
     fn_Debug(data);
     break;
 
+  case TEMP_ID:
+    fn_Temp(data);
+    break;
+
   default:
     Serial.print("ID: ");
     Serial.println(canId);
@@ -716,6 +720,14 @@ void fn_Data_03(__u8 data[DATA_03_DLC])
 
 void fn_Data_04(__u8 data[DATA_04_DLC])
 {
+  __u16 r_Oil_Pressure = ((data[1] & 0x0F) << 8) + data[0];
+  //__u16 r_Oil_Temp = (data[2] << 4) + ((data[1] >> 4) & 0x0F);
+
+  float Oil_Pressure = (r_Oil_Pressure);
+  //float Oil_Temp = (r_Oil_Temp);
+  
+  sensorUpdate(Oil_Pressure, Oil_Pressure_Sensor.index);
+  //sensorUpdate(Oil_Temp, Oil_Temperature_Sensor.index);
 }
 
 void fn_Data_05(__u8 data[DATA_05_DLC])
@@ -742,6 +754,30 @@ void fn_Data_08(__u8 data[DATA_08_DLC])
 
 void fn_Data_09(__u8 data[DATA_09_DLC])
 {
+}
+
+void fn_Temp(__u8 data[TEMP_DLC]){
+  __u16 r_DT_FR = data[0] | ((data[1] & 0x07) << 8);
+  __u16 r_DT_FL = ((data[1] >> 3) & 0x1F) | ((data[2] & 0x3F) << 5);
+  __u16 r_DT_RR = ((data[2] >> 6) & 0x03) | (data[3] << 2) | ((data[4] & 0x01) << 10);
+  __u16 r_DT_RL = ((data[4] >> 1) & 0x7F) | ((data[5] & 0x0F) << 7);
+  __u16 r_DT_F1 = ((data[5] >> 4) & 0x0F) | ((data[6] & 0x1F) << 4);
+  __u16 r_DT_F2 = ((data[6] >> 5) & 0x07) | (data[7] << 3);
+
+
+  float DT_FR = U16toFloat(r_DT_FR,2);
+  float DT_FL = U16toFloat(r_DT_FL,2);
+  float DT_RR = U16toFloat(r_DT_RR,2);
+  float DT_RL = U16toFloat(r_DT_RL,2);
+  float DT_F1 = U16toFloat(r_DT_F1,2);
+  float DT_F2 = U16toFloat(r_DT_F2,2);
+
+  sensorUpdate(DT_FR, Disk_Temp_FR_Sensor.index);
+  sensorUpdate(DT_FL, Disk_Temp_FL_Sensor.index);
+  sensorUpdate(DT_RR, Disk_Temp_RR_Sensor.index);
+  sensorUpdate(DT_RL, Disk_Temp_RL_Sensor.index);
+  sensorUpdate(DT_F1, Firewall_Temperature1_Sensor.index);
+  sensorUpdate(DT_F2, Firewall_Temperature2_Sensor.index);
 }
 
 void fn_Buffer_Ack(__u8 data[BUFFER_ACK_DLC])
@@ -1034,9 +1070,9 @@ void AccelGyro_task1(void *parameter){
 
     
     
-    sensorUpdate(AcX,Accel_X.index);
-    sensorUpdate(AcY,Accel_Y.index);
-    sensorUpdate(AcZ,Accel_Z.index);
+    sensorUpdate(aX,Accel_X.index);
+    sensorUpdate(aY,Accel_Y.index);
+    sensorUpdate(aZ,Accel_Z.index);
     sensorUpdate(aMod,Accel.index);
     sensorUpdate(RateRoll,Gyro_X.index);
     sensorUpdate(RatePitch,Gyro_Y.index);
@@ -1067,3 +1103,4 @@ void AccelGyro_task1(void *parameter){
     vTaskDelay(xFrequency);
   }
 }
+

@@ -52,3 +52,7 @@ const __u8 GYRO_DLC = 6;
 
 const __u8 BUFFER_ACK_ID = 0x0B;
 const __u8 BUFFER_ACK_DLC = 1;
+
+const __u8 TEMP_ID = 0x0C;
+const __u8 TEMP_DLC = 8;
+
