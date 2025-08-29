@@ -1,5 +1,8 @@
 #include "sensorsSetup.h"
 
+SW_Settings SteeringWheel(341.5,135);
+
+
 Sensor Voltage_Sensor;
 Sensor Internal_Temperature_Sensor;
 Sensor V_Ref_Sensor;
@@ -174,3 +177,4 @@ void setSensorName()
     Wing_Extensometer_3_Sensor.name = "Wing_Ext_3 (mm)";
     Wing_Extensometer_4_Sensor.name = "Wing_Ext_4 (mm)";
 }
+

@@ -46,11 +46,11 @@ float suspSensor(__u16 value){
   return roundf(((prop*120) - middle) * 10.0f) / 10.0f;
 }
 
-float wheelAngleSensor(__u16 value){
+/*float wheelAngleSensor(__u16 value){
   float prop = vRef_Proportion(value);
   float middle =0;
   return roundf(((prop*360) - middle) * 10.0f) / 10.0f;
-}
+}*/
 
 String Gear_Pos(__u8 value){
     switch(value){
