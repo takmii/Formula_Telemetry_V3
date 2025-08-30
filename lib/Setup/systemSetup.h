@@ -49,7 +49,7 @@
 
 #define BUFFER_LENGTH TIMEBASE/SD_TASK_TIMER
 #define BUFFER_NUMBER 2
-#define MAX_SENSORS 55
+#define MAX_SENSORS 85
 #define BUFFER_SIZE 7
 
 #define RPM_PIN 32
@@ -94,6 +94,15 @@ void fn_Buffer_Ack(__u8 data[BUFFER_ACK_DLC]);
 void fn_Debug(__u8 data[DEBUG_DLC]);
 void fn_Temp(__u8 data[TEMP_DLC]);
 
+void fn_Group_0(__u8 data[GROUP0_DLC]);
+void fn_Group_1(__u8 data[GROUP1_DLC]);
+void fn_Group_2(__u8 data[GROUP2_DLC]);
+void fn_Group_3(__u8 data[GROUP3_DLC]);
+void fn_Group_7(__u8 data[GROUP7_DLC]);
+void fn_Group_8(__u8 data[GROUP8_DLC]);
+void fn_Group_9(__u8 data[GROUP9_DLC]);
+void fn_Group_15(__u8 data[GROUP15_DLC]);
+
 void IRAM_ATTR handleEdge();
 
 void init_twai();
@@ -116,6 +125,7 @@ const int   daylightOffset_sec = 0;
 const char* mqtt_login = "Gateway";
 const char* mqtt_pwd = "#0FormulaUTFPR";
 
+const float FtC = 0.55;
 
 
 template <typename T>

@@ -1,7 +1,6 @@
 #include "sensorsSetup.h"
 
-SW_Settings SteeringWheel(341.5,135);
-
+SW_Settings SteeringWheel(341.5, 135);
 
 Sensor Voltage_Sensor;
 Sensor Internal_Temperature_Sensor;
@@ -48,6 +47,35 @@ Sensor MAP_Sensor;
 Sensor MAF_Sensor;
 Sensor Cylinder_1_Pressure_Sensor;
 Sensor Cylinder_2_Pressure_Sensor;
+Sensor MS2_Sec;
+Sensor MS2_Bank1;
+Sensor MS2_Bank2;
+Sensor MS2_Baro_Press;
+Sensor MS2_MAP;
+Sensor MS2_MAT;
+Sensor MS2_CLT;
+Sensor MS2_TPS;
+Sensor MS2_Voltage;
+Sensor MS2_AFR1;
+Sensor MS2_AFR2;
+Sensor MS2_Lambda;
+Sensor MS2_Cold_Adv;
+Sensor MS2_TPS_Rate;
+Sensor MS2_MAP_Rate;
+Sensor MS2_RPM_Rate;
+Sensor MS2_MAF_Load;
+Sensor MS2_Fuel_Load;
+Sensor MS2_Fuel_Correction;
+Sensor MS2_MAF;
+Sensor MS2_O2_V1;
+Sensor MS2_O2_V2;
+Sensor MS2_Main_Ign_Dwell;
+Sensor MS2_Trailing_Ign_Dwell;
+Sensor MS2_Fin_Ign_Sprk_Adv;
+Sensor MS2_BatchFire_Inj_Events;
+Sensor MS2_EngineStatus;
+Sensor MS2_Bank1_AFR_Tgt;
+Sensor MS2_Bank2_AFR_Tgt;
 Sensor Firewall_Temperature1_Sensor;
 Sensor Firewall_Temperature2_Sensor;
 Sensor Wing_Extensometer_1_Sensor;
@@ -103,6 +131,35 @@ Sensor *sensorIndex[] = {
     &MAF_Sensor,
     &Cylinder_1_Pressure_Sensor,
     &Cylinder_2_Pressure_Sensor,
+    &MS2_Sec,
+    &MS2_Bank1,
+    &MS2_Bank2,
+    &MS2_Baro_Press,
+    &MS2_MAP,
+    &MS2_MAT,
+    &MS2_CLT,
+    &MS2_TPS,
+    &MS2_Voltage,
+    &MS2_AFR1,
+    &MS2_Bank1_AFR_Tgt,
+    &MS2_AFR2,
+    &MS2_Bank2_AFR_Tgt,
+    &MS2_Lambda,
+    &MS2_Cold_Adv,
+    &MS2_TPS_Rate,
+    &MS2_MAP_Rate,
+    &MS2_RPM_Rate,
+    &MS2_MAF_Load,
+    &MS2_Fuel_Load,
+    &MS2_Fuel_Correction,
+    &MS2_MAF,
+    &MS2_O2_V1,
+    &MS2_O2_V2,
+    &MS2_Main_Ign_Dwell,
+    &MS2_Trailing_Ign_Dwell,
+    &MS2_Fin_Ign_Sprk_Adv,
+    &MS2_BatchFire_Inj_Events,
+    &MS2_EngineStatus,
     &Firewall_Temperature1_Sensor,
     &Firewall_Temperature2_Sensor,
     &Wing_Extensometer_1_Sensor,
@@ -170,6 +227,35 @@ void setSensorName()
     MAF_Sensor.name = "MAF (mm^3/s)";
     Cylinder_1_Pressure_Sensor.name = "Cylinder_1_Press (kPa)";
     Cylinder_2_Pressure_Sensor.name = "Cylinder_2_Press (kPa)";
+    MS2_Sec.name = "MS2_Seconds(s)";
+    MS2_Bank1.name = "Bank_1 (ms)";
+    MS2_Bank2.name = "Bank_2 (ms)";
+    MS2_Baro_Press.name = "Barometer_Press (kPa)";
+    MS2_MAP.name = "MAP (kPa)";
+    MS2_MAT.name = "MAT (ºC)";
+    MS2_CLT.name = "CLT (ºC)";
+    MS2_TPS.name = "TPS (%)";
+    MS2_Voltage.name = "MS2_Voltage (V)";
+    MS2_AFR1.name = "AFR_1";
+    MS2_Bank1_AFR_Tgt.name = "Bank1_AFR_Target (AFR)";
+    MS2_AFR2.name = "AFR_2";
+    MS2_Bank2_AFR_Tgt.name = "Bank2_AFR_Target (AFR)";
+    MS2_Lambda.name = "Lambda";
+    MS2_Cold_Adv.name = "Cold Advance (º)";
+    MS2_TPS_Rate.name = "TPS_Rate (%/s)";
+    MS2_MAP_Rate.name = "MAP_Rate (kPa/s)";
+    MS2_RPM_Rate.name = "RPM_Rate (RPM/s)";
+    MS2_MAF_Load.name = "MAF_Load (%)";
+    MS2_Fuel_Load.name = "Fuel_Load (%)";
+    MS2_Fuel_Correction.name = "Fuel_Correction (%)";
+    MS2_MAF.name = "MAF (g/s)";
+    MS2_O2_V1.name = "O2_Voltage_1 (V)";
+    MS2_O2_V2.name = "O2_Voltage_2 (V)";
+    MS2_Main_Ign_Dwell.name = "Main_Ign_Dwell (ms)";
+    MS2_Trailing_Ign_Dwell.name = "Trailing_Ign_Dwell (ms)";
+    MS2_Fin_Ign_Sprk_Adv.name = "Final_Ign_Sprk_Adv (º)";
+    MS2_BatchFire_Inj_Events.name = "BatchFire_Inj_Events";
+    MS2_EngineStatus.name = "EngineStatus";
     Firewall_Temperature1_Sensor.name = "Firewall_Temp_1 (ºC)";
     Firewall_Temperature2_Sensor.name = "Firewall_Temp_2 (ºC)";
     Wing_Extensometer_1_Sensor.name = "Wing_Ext_1 (mm)";
@@ -177,4 +263,3 @@ void setSensorName()
     Wing_Extensometer_3_Sensor.name = "Wing_Ext_3 (mm)";
     Wing_Extensometer_4_Sensor.name = "Wing_Ext_4 (mm)";
 }
-

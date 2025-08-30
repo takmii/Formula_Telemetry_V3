@@ -1,5 +1,7 @@
 #include <variables.h>
 
+#include "CAN_MS2_Messages.h"
+
 #define CAN_TASK_TIMER 2
 
 const __u8 MESSAGES_ID = 0x01;

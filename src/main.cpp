@@ -214,8 +214,8 @@ void setup()
 
   rpm_time_zero=millis();
 
-  pinMode(RPM_PIN,INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(RPM_PIN), handleEdge, FALLING);
+  //pinMode(RPM_PIN,INPUT_PULLUP);
+  //attachInterrupt(digitalPinToInterrupt(RPM_PIN), handleEdge, FALLING);
 
   xTaskCreatePinnedToCore(
       sdTask,    // Function to implement the task
@@ -278,7 +278,7 @@ void setup()
       0                // Core (0 or 1)
   );
 
-  xTaskCreatePinnedToCore(
+  /*xTaskCreatePinnedToCore(
       RPM_task,    // Function to implement the task
       "RPM Task", // Name of the task
       2048,       // Stack size in words
@@ -286,7 +286,7 @@ void setup()
       5,          // Priority of the task
       NULL,       // Task handle
       0           // Core where the task should run (0 or 1)
-  );
+  );*/
 
   xTaskCreatePinnedToCore(
       AccelGyro_task1,    // Function to implement the task
@@ -648,10 +648,42 @@ void CAN_setSensor(const __u8 *canData, __u8 canPacketSize, __u32 canId)
     fn_Temp(data);
     break;
 
+  case BASE_ID + GROUP0_ID:
+    fn_Group_0(data);
+    break;
+
+    case BASE_ID + GROUP1_ID:
+    fn_Group_1(data);
+    break;
+
+    case BASE_ID + GROUP2_ID:
+    fn_Group_2(data);
+    break;
+
+    case BASE_ID + GROUP3_ID:
+    fn_Group_3(data);
+    break;
+
+        case BASE_ID + GROUP7_ID:
+    fn_Group_7(data);
+    break;
+
+        case BASE_ID + GROUP8_ID:
+    fn_Group_8(data);
+    break;
+
+        case BASE_ID + GROUP9_ID:
+    fn_Group_9(data);
+    break;
+
+        case BASE_ID + GROUP15_ID:
+    fn_Group_15(data);
+    break;
+
   default:
-    Serial.print("ID: ");
-    Serial.println(canId);
-    Serial.println("Not Recognized");
+    Serial.print("0x");
+    Serial.println(canId,HEX);
+    Serial.println(" NR");
     break;
   }
 }
@@ -720,13 +752,13 @@ void fn_Data_03(__u8 data[DATA_03_DLC])
 
 void fn_Data_04(__u8 data[DATA_04_DLC])
 {
-  __u16 r_Oil_Pressure = ((data[1] & 0x0F) << 8) + data[0];
+  //__u16 r_Oil_Pressure = ((data[1] & 0x0F) << 8) + data[0];
   //__u16 r_Oil_Temp = (data[2] << 4) + ((data[1] >> 4) & 0x0F);
 
-  float Oil_Pressure = (r_Oil_Pressure);
+  //float Oil_Pressure = (r_Oil_Pressure);
   //float Oil_Temp = (r_Oil_Temp);
   
-  sensorUpdate(Oil_Pressure, Oil_Pressure_Sensor.index);
+  //sensorUpdate(Oil_Pressure, Oil_Pressure_Sensor.index);
   //sensorUpdate(Oil_Temp, Oil_Temperature_Sensor.index);
 }
 
@@ -841,8 +873,6 @@ void writeSDCard()
         linha += ";"; // separador CSV
       }
       linha += timeValues[buffer_read][l];
-      linha += ";";
-      linha += String(buffer_read);
       oFile.println(linha);
     }
     // oFile.flush(); // força gravação no cartão SD
@@ -865,7 +895,7 @@ void init_twai()
       .alerts_enabled = TWAI_ALERT_NONE,
       .clkout_divider = 0};
 
-  twai_timing_config_t t_config = TWAI_TIMING_CONFIG_1MBITS();
+  twai_timing_config_t t_config = TWAI_TIMING_CONFIG_500KBITS();
   twai_filter_config_t f_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
 
   // Install TWAI driver
@@ -942,7 +972,7 @@ void Calibracao(void *parameter)
   }
 }
 
-void IRAM_ATTR handleEdge(){
+/*void IRAM_ATTR handleEdge(){
   uint32_t now = micros();
   Serial.println(""); 
   if (n==0){
@@ -957,9 +987,9 @@ void IRAM_ATTR handleEdge(){
   rpm_time_last= now;
   rpm_flag = 1;
   }
-}
+}*/
 
-void RPM_task(void *parameter){
+/*void RPM_task(void *parameter){
   TickType_t xLastWakeTime = xTaskGetTickCount();
   const TickType_t xFrequency = pdMS_TO_TICKS(RPM_TIMER);
   uint32_t time_rpm;
@@ -1008,7 +1038,7 @@ void RPM_task(void *parameter){
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
 }
 
-}
+}*/
 
 void AccelGyro_task1(void *parameter){
   TickType_t xLastWakeTime = xTaskGetTickCount();
@@ -1104,3 +1134,149 @@ void AccelGyro_task1(void *parameter){
   }
 }
 
+void fn_Group_0(__u8 data[GROUP0_DLC])
+{
+  __u16 r_seconds = word(data[0],data[1]);
+  __u16 r_pw1 = word(data[2],data[3]);
+  __u16 r_pw2 = word(data[4],data[5]);
+  __u16 r_RPM = word(data[6],data[7]);
+
+
+  float seconds = MS2_Calibration(r_seconds,1,1);
+  float pw1 = MS2_Calibration(r_pw1,1,1000);
+  float pw2 = MS2_Calibration(r_pw2,1,1000);
+  float RPM = MS2_Calibration(r_RPM,1,1);
+  
+
+  sensorUpdate(seconds, MS2_Sec.index);
+  sensorUpdate(pw1, MS2_Bank1.index);
+  sensorUpdate(pw2, MS2_Bank2.index);
+  sensorUpdate(RPM, RPM_Sensor.index);
+}
+
+void fn_Group_1(__u8 data[GROUP1_DLC])
+{
+  __s16 r_Fin_Ign_Sprk_Adv = word(data[0],data[1]);
+  __u8 r_BatchFire_Inj_Events = data[2];
+  __u8 r_EngineStatus = data[3];
+  __u8 r_Bank1_AFR_Tgt = data[4];
+  __u8 r_Bank2_AFR_Tgt = data[5];
+
+float Fin_Ign_Sprk_Adv = MS2_Calibration(r_Fin_Ign_Sprk_Adv,1,10);
+float BatchFire_Inj_Events = MS2_Calibration(r_BatchFire_Inj_Events,1,1);
+float EngineStatus = MS2_Calibration(r_EngineStatus,1,1);
+float Bank1_AFR_Tgt = MS2_Calibration(r_Bank1_AFR_Tgt,1,10);
+float Bank2_AFR_Tgt = MS2_Calibration(r_Bank2_AFR_Tgt,1,10);
+
+sensorUpdate(Fin_Ign_Sprk_Adv, MS2_Fin_Ign_Sprk_Adv.index);
+sensorUpdate(BatchFire_Inj_Events, MS2_BatchFire_Inj_Events.index);
+sensorUpdate(EngineStatus, MS2_EngineStatus.index);
+sensorUpdate(Bank1_AFR_Tgt, MS2_Bank1_AFR_Tgt.index);
+sensorUpdate(Bank2_AFR_Tgt, MS2_Bank2_AFR_Tgt.index);
+
+}
+
+void fn_Group_2(__u8 data[GROUP2_DLC])
+{
+  
+  __s16 r_Baro = word(data[0],data[1]);
+  __s16 r_MAP = word(data[2],data[3]);
+  __s16 r_MAT = word(data[4],data[5]);
+  __s16 r_CLT = word(data[6],data[7]);
+
+
+  float Baro = MS2_Calibration(r_Baro,1,10);
+  float MAP = MS2_Calibration(r_MAP,1,10);
+  float MAT = (MS2_Calibration(r_MAT,1,10)-32)*FtC;
+  float CLT = (MS2_Calibration(r_CLT,1,10)-32)*FtC;
+  
+
+  sensorUpdate(Baro, MS2_Baro_Press.index);
+  sensorUpdate(MAP, MS2_MAP.index);
+  sensorUpdate(MAT, MS2_MAT.index);
+  sensorUpdate(CLT, MS2_CLT.index);
+}
+
+void fn_Group_3(__u8 data[GROUP3_DLC])
+{
+  __s16 r_TPS = word(data[0],data[1]);
+  __s16 r_Voltage = word(data[2],data[3]);
+  __s16 r_AFR1 = word(data[4],data[5]);
+  __s16 r_AFR2 = word(data[6],data[7]);
+
+
+  float TPS = MS2_Calibration(r_TPS,1,10);
+  float Voltage = MS2_Calibration(r_Voltage,1,10);
+  float AFR1 = MS2_Calibration(r_AFR1,1,10);
+  float AFR2 = MS2_Calibration(r_AFR2,1,10);
+  
+
+  sensorUpdate(TPS, MS2_TPS.index);
+  sensorUpdate(Voltage, MS2_Voltage.index);
+  sensorUpdate(AFR1, MS2_AFR1.index);
+  sensorUpdate(AFR2, MS2_AFR2.index);
+}
+
+void fn_Group_7(__u8 data[GROUP7_DLC])
+{
+  __s16 r_cold_Adv = word(data[0],data[1]);
+  __s16 r_TPS_rate = word(data[2],data[3]);
+  __s16 r_MAP_rate = word(data[4],data[5]);
+  __s16 r_RPM_rate = word(data[6],data[7]);
+
+  float cold_Adv = MS2_Calibration(r_cold_Adv,1,10);
+  float TPS_rate = MS2_Calibration(r_TPS_rate,1,10);
+  float MAP_rate = MS2_Calibration(r_MAP_rate,1,1);
+  float RPM_rate = MS2_Calibration(r_RPM_rate,10,1);
+
+  sensorUpdate(cold_Adv, MS2_Cold_Adv.index);
+  sensorUpdate(TPS_rate, MS2_TPS_Rate.index);
+  sensorUpdate(MAP_rate, MS2_MAP_Rate.index);
+  sensorUpdate(RPM_rate, MS2_RPM_Rate.index);
+}
+
+void fn_Group_8(__u8 data[GROUP8_DLC])
+{
+  __s16 r_MAF_Load = word(data[0],data[1]);
+  __s16 r_Fuel_Load = word(data[2],data[3]);
+  __s16 r_Fuel_Correction = word(data[4],data[5]);
+  __s16 r_MAF = word(data[6],data[7]);
+
+  float MAF_Load = MS2_Calibration(r_MAF_Load,1,10);
+  float Fuel_Load = MS2_Calibration(r_Fuel_Load,1,10);
+  float Fuel_Correction = MS2_Calibration(r_Fuel_Correction,1,10);
+  float MAF = MS2_Calibration(r_MAF,1,100);
+
+  sensorUpdate(MAF_Load, MS2_MAF_Load.index);
+  sensorUpdate(Fuel_Load, MS2_Fuel_Load.index);
+  sensorUpdate(Fuel_Correction, MS2_Fuel_Correction.index);
+  sensorUpdate(MAF, MS2_MAF.index);
+}
+
+void fn_Group_9(__u8 data[GROUP9_DLC])
+{
+  __s16 r_O2_V1= word(data[0],data[1]);
+  __s16 r_O2_V2 = word(data[2],data[3]);
+  __u16 r_Main_Dwell = word(data[4],data[5]);
+  __u16 r_Trailing_Dwell = word(data[6],data[7]);
+
+  float O2_V1 = MS2_Calibration(r_O2_V1,1,100);
+  float O2_V2 = MS2_Calibration(r_O2_V2,1,100);
+  float Main_Dwell = MS2_Calibration(r_Main_Dwell,1,10);
+  float Trailing_Dwell = MS2_Calibration(r_Trailing_Dwell,1,10);
+
+  sensorUpdate(O2_V1, MS2_O2_V1.index);
+  sensorUpdate(O2_V2, MS2_O2_V2.index);
+  sensorUpdate(Main_Dwell, MS2_Main_Ign_Dwell.index);
+  sensorUpdate(Trailing_Dwell, MS2_Trailing_Ign_Dwell.index);
+}
+
+void fn_Group_15(__u8 data[GROUP15_DLC])
+{
+  __s16 r_OilPress= word(data[0],data[1]);
+  //__s16 r_O2_V2 = word(data[2],data[3]);
+
+  float OilPress = MS2_Calibration(r_OilPress,1,10);
+
+  sensorUpdate(OilPress, Oil_Pressure_Sensor.index);
+}

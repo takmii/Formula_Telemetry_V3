@@ -95,3 +95,7 @@ float U16toFloat(uint16_t value, uint8_t precision_bits){
     uint16_t fracPart = value & (scale - 1);             // parte fracionária em "steps"
     return (float)intPart + ((float)fracPart / scale);   // reconstrução
 }
+
+float MS2_Calibration(float value, unsigned short m, unsigned short d){
+  return value*m/d;
+}
