@@ -96,6 +96,26 @@ float U16toFloat(uint16_t value, uint8_t precision_bits){
     return (float)intPart + ((float)fracPart / scale);   // reconstrução
 }
 
-float MS2_Calibration(float value, unsigned short m, unsigned short d){
-  return value*m/d;
+float MS2_Float_Calibration(unsigned short value, unsigned short m, unsigned short d){
+  return (float)value*m/d;
+}
+
+unsigned short MS2_U16_Calibration(unsigned short value, unsigned short m, unsigned short d){
+  float v=(float)value*m/d;
+  return (unsigned short)v;
+}
+
+unsigned char MS2_U8_Calibration(unsigned short value, unsigned short m, unsigned short d){
+  float v=(float)value*m/d;
+  return (unsigned char)v;
+}
+
+signed short MS2_S16_Calibration(unsigned short value, unsigned short m, unsigned short d){
+  float v=(float)value*m/d;
+  return (signed short)v;
+}
+
+signed char MS2_S8_Calibration(unsigned short value, unsigned short m, unsigned short d){
+  float v=(float)value*m/d;
+  return (signed char)v;
 }

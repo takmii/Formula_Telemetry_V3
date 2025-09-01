@@ -118,7 +118,11 @@ float suspSensor(__u16 value);
 unsigned short degreesofPrecision(uint16_t data, float max_Value, float decimal);
 signed short AccAxisCalibration();
 signed short GyroAxisCalibration();
-float MS2_Calibration(float value, unsigned short m, unsigned short d);
+float MS2_Float_Calibration(float value, unsigned short m, unsigned short d);
+unsigned short MS2_U16_Calibration(unsigned short value, unsigned short m, unsigned short d);
+unsigned char MS2_U8_Calibration(unsigned short value, unsigned short m, unsigned short d);
+signed short MS2_S16_Calibration(unsigned short value, unsigned short m, unsigned short d);
+signed char MS2_S8_Calibration(unsigned short value, unsigned short m, unsigned short d);
 
 float U16toFloat(uint16_t value, uint8_t precision_bits);
 
