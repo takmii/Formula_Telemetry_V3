@@ -1,6 +1,6 @@
 #include "sensorsSetup.h"
 
-SW_Settings SteeringWheel(341.5, 135);
+SW_Settings SteeringWheel(353, 135);
 
 Sensor Voltage_Sensor;
 Sensor Internal_Temperature_Sensor;
@@ -43,7 +43,8 @@ Sensor Intercooler_Temperature_Sensor;
 Sensor Intercooler_Pressure_Sensor;
 Sensor In_Cooling_Temperature_Sensor;
 Sensor Out_Cooling_Temperature_Sensor;
-Sensor MAP_Sensor;
+Sensor MAP1_Sensor;
+Sensor MAP2_Sensor;
 Sensor MAF_Sensor;
 Sensor Cylinder_1_Pressure_Sensor;
 Sensor Cylinder_2_Pressure_Sensor;
@@ -127,7 +128,8 @@ Sensor *sensorIndex[] = {
     &Intercooler_Pressure_Sensor,
     &In_Cooling_Temperature_Sensor,
     &Out_Cooling_Temperature_Sensor,
-    &MAP_Sensor,
+    &MAP1_Sensor,
+    &MAP2_Sensor,
     &MAF_Sensor,
     &Cylinder_1_Pressure_Sensor,
     &Cylinder_2_Pressure_Sensor,
@@ -223,7 +225,8 @@ void setSensorName()
     Intercooler_Pressure_Sensor.name = "Intercooler_Out_Temp (ºC)";
     In_Cooling_Temperature_Sensor.name = "Cooling_In_Temp (ºC)";
     Out_Cooling_Temperature_Sensor.name = "Cooling_Out_Temp (ºC)";
-    MAP_Sensor.name = "MAP (kPa)";
+    MAP1_Sensor.name = "MAP_1 (kPa)";
+    MAP2_Sensor.name = "MAP_2 (kPa)";
     MAF_Sensor.name = "MAF (mm^3/s)";
     Cylinder_1_Pressure_Sensor.name = "Cylinder_1_Press (kPa)";
     Cylinder_2_Pressure_Sensor.name = "Cylinder_2_Press (kPa)";

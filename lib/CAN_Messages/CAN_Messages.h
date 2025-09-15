@@ -43,6 +43,9 @@ const __u8 DATA_08_DLC = 8;
 const __u8 DATA_09_ID = 0x0A;
 const __u8 DATA_09_DLC = 6;
 
+const __u8 DATA_10_ID = 0x0D;
+const __u8 DATA_10_DLC = 6;
+
 const __u8 RPM_ID = 0x0F;
 const __u8 RPM_DLC = 2;
 

@@ -1,6 +1,11 @@
 #ifndef MS2_MSGS_H
 #define MS2_MSGS_H
 
+const unsigned short MS2_1_cal   = 1;
+const unsigned short MS2_10_cal  = 10;
+const unsigned short MS2_100_cal = 100;
+const unsigned short MS2_1000_cal = 1000;
+
 const unsigned short BASE_ID = 1520;
 
 const unsigned char GROUP0_ID = 0x00;

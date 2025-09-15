@@ -46,6 +46,50 @@ float suspSensor(__u16 value){
   return roundf(((prop*120) - middle) * 10.0f) / 10.0f;
 }
 
+float mapSensor(__u16 value){
+  static const double a= 5*54.12;
+  static const double b= -1.65;
+  float prop = vRef_Proportion(value);
+  return roundf((a*prop + b) * 10.0f) / 10.0f;
+}
+
+float mafSensor(__u16 value){
+  const static float a = 13.49;
+  const static float b = -31.78;
+  const static float c = 61.578;
+  const static float d = -43.707;
+  float prop = vRef_Proportion(value);
+  float pA = pow(5*prop,3);
+  float pB = pow(5*prop,2);
+  float pC = 5*prop;
+  return roundf(((a*pA) + (b*pB) + (c*pC) + d) * 10.0f) / 10.0f;
+}
+
+float tempSensor(__u16 value,double a,double b,double c){
+  const static unsigned short R1 = 2200;
+  const static unsigned short R2 = 3900;
+
+  float inv_prop = 1/vRef_Proportion(value);
+  float R = (float)inv_prop*R2 - R2 - R1;
+  float lR = log(R);
+  float lR3 = pow(lR,3);
+  return roundf((1/((a) + (b*lR) + (c*lR3))-273.15) * 10.0f) / 10.0f;
+}
+
+float tempOilSensor(__u16 value,double a,double b,double c){
+  const static unsigned short R1 = 2200;
+  const static unsigned short R2 = 3900;
+  const static unsigned short R3 = 10000;
+  const static float Req = (float) ((R1+R2)*R3)/(R1+R2+R3);
+
+  float inv_prop = 1/vRef_Proportion(value);
+  float R = (float)inv_prop*R2 - Req;
+  float lR = log(R);
+  float lR3 = pow(lR,3);
+  return roundf((1/((a) + (b*lR) + (c*lR3))-273.15) * 10.0f) / 10.0f;
+}
+
+
 /*float wheelAngleSensor(__u16 value){
   float prop = vRef_Proportion(value);
   float middle =0;
@@ -96,6 +140,26 @@ float U16toFloat(uint16_t value, uint8_t precision_bits){
     return (float)intPart + ((float)fracPart / scale);   // reconstrução
 }
 
-float MS2_Calibration(float value, unsigned short m, unsigned short d){
-  return value*m/d;
+float MS2_Float_Calibration(unsigned short value, unsigned short m, unsigned short d){
+  return (float)value*m/d;
+}
+
+unsigned short MS2_U16_Calibration(unsigned short value, unsigned short m, unsigned short d){
+  float v=(float)value*m/d;
+  return (unsigned short)v;
+}
+
+unsigned char MS2_U8_Calibration(unsigned short value, unsigned short m, unsigned short d){
+  float v=(float)value*m/d;
+  return (unsigned char)v;
+}
+
+signed short MS2_S16_Calibration(unsigned short value, unsigned short m, unsigned short d){
+  float v=(float)value*m/d;
+  return (signed short)v;
+}
+
+signed char MS2_S8_Calibration(unsigned short value, unsigned short m, unsigned short d){
+  float v=(float)value*m/d;
+  return (signed char)v;
 }

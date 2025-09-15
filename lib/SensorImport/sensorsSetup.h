@@ -59,7 +59,8 @@ extern Sensor Intercooler_Temperature_Sensor;
 extern Sensor Intercooler_Pressure_Sensor;
 extern Sensor In_Cooling_Temperature_Sensor;
 extern Sensor Out_Cooling_Temperature_Sensor;
-extern Sensor MAP_Sensor;
+extern Sensor MAP1_Sensor;
+extern Sensor MAP2_Sensor;
 extern Sensor MAF_Sensor;
 extern Sensor Cylinder_1_Pressure_Sensor;
 extern Sensor Cylinder_2_Pressure_Sensor;
@@ -114,11 +115,20 @@ float vBatSensor(__u16 value);
 float vRefSensor(__u16 value);
 float internalTemp(__u16 value);
 float suspSensor(__u16 value);
+float mapSensor(__u16 value);
+float mafSensor(__u16 value);
+float tempSensor(__u16 value,double a,double b,double c);
+float tempOilSensor(__u16 value,double a,double b,double c);
 //float wheelAngleSensor(__u16 value);
 unsigned short degreesofPrecision(uint16_t data, float max_Value, float decimal);
 signed short AccAxisCalibration();
 signed short GyroAxisCalibration();
-float MS2_Calibration(float value, unsigned short m, unsigned short d);
+float MS2_Float_Calibration(unsigned short value, unsigned short m, unsigned short d);
+unsigned short MS2_U16_Calibration(unsigned short value, unsigned short m, unsigned short d);
+unsigned char MS2_U8_Calibration(unsigned short value, unsigned short m, unsigned short d);
+signed short MS2_S16_Calibration(unsigned short value, unsigned short m, unsigned short d);
+signed char MS2_S8_Calibration(unsigned short value, unsigned short m, unsigned short d);
+
 
 float U16toFloat(uint16_t value, uint8_t precision_bits);
 
