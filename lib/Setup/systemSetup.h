@@ -39,6 +39,7 @@
 #define SD_FLUSH_TIMER 1000
 #define SD_VERIFY_FILESIZE_TIMER 60000
 #define SD_VERIFY_TIMER 5000
+#define MESSAGES_TIMER 10000
 #define CALIBRACAO_TIMER 500
 #define ACC_TIMER CAN_TASK_TIMER
 
@@ -69,6 +70,7 @@ void sdVerify(void *parameter);
 void CAN_receiveTask(void *parameter);
 void RPM_task(void *parameter);
 void AccelGyro_task1(void *parameter);
+void MessagesFN(void *parameter);
 void disableBluetooth();
 void getRTC();
 void setRTC();

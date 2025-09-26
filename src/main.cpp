@@ -33,6 +33,10 @@ TickType_t now;
 volatile bool flag_sd = 0;
 bool sd_started = 0;
 
+
+uint8_t sd_status=0;
+uint8_t accgyro_status=0;
+
 uint32_t verify_Filesize_timer;
 
 bool sd_open = 0;
@@ -175,6 +179,7 @@ void setup()
   else
   {
     sd_started = 1;
+    sd_status = 1;
     Serial.println("Cartão SD inicializado com sucesso.");
   }
   if (sd_started)
@@ -251,6 +256,16 @@ void setup()
     xTaskCreatePinnedToCore(
       Calibracao,    // Function to implement the task
       "Calibracao", // Name of the task
+      2048,       // Stack size in words
+      NULL,       // Task input parameter
+      1,          // Priority of the task
+      NULL,       // Task handle
+      1           // Core where the task should run (0 or 1)
+  );
+
+      xTaskCreatePinnedToCore(
+      MessagesFN,    // Function to implement the task
+      "Message FN", // Name of the task
       2048,       // Stack size in words
       NULL,       // Task input parameter
       1,          // Priority of the task
@@ -487,6 +502,7 @@ void sdVerify(void *parameter)
       if (xSemaphoreTake(sdMutex, portMAX_DELAY)) {
       if (!oFile)
       {
+        sd_status = 1;
         oFile = SD.open(file_.c_str(), FILE_APPEND);
       }
       xSemaphoreGive(sdMutex);
@@ -881,6 +897,7 @@ void writeSDCard()
 {
   if (oFile)
   {
+    sd_status = 2;
     String linha;
     sd_hold = 1;
     for (int l = 0; l < BUFFER_LENGTH; l++)
@@ -1088,9 +1105,15 @@ void AccelGyro_task1(void *parameter){
   for (;;)
   {
     if (acc_start){
+    
     I2C_MPU6050.beginTransmission(MPU_addr);
     I2C_MPU6050.write(0x3B); // Endereço do primeiro registrador de dados
-    I2C_MPU6050.endTransmission(false);
+    if (!I2C_MPU6050.endTransmission(false)){
+      accgyro_status = 2;
+    }
+    else{
+      accgyro_status = 1;
+    }
     I2C_MPU6050.requestFrom(MPU_addr, 14, true);
 
     AcX = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
@@ -1103,6 +1126,8 @@ void AccelGyro_task1(void *parameter){
     GyX = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
     GyY = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
     GyZ = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
+
+    
 
     RateRoll=(float)GyX/65.5;
     RatePitch=(float)GyY/65.5;
@@ -1297,4 +1322,18 @@ void fn_Group_15(__u8 data[GROUP15_DLC])
   float OilPress = MS2_Float_Calibration(r_OilPress,MS2_1_cal,MS2_10_cal);
 
   sensorUpdate(OilPress, Oil_Pressure_Sensor.index);
+}
+
+void MessagesFN(void *parameter){
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+  const TickType_t xFrequency = pdMS_TO_TICKS(MESSAGES_TIMER);
+  static __u8 data[8];
+  for (;;)
+  {
+    data[0] = sd_status&0b11;
+    data[0] |= (accgyro_status&0b11)<<2;
+    sendCANMessage(MESSAGES_ID,data,MESSAGES_DLC);
+    vTaskDelayUntil(&xLastWakeTime, xFrequency);
+  }
+
 }
