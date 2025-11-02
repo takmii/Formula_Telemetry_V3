@@ -8,6 +8,8 @@
 #define A_5_5V 6825
 const float VRefMax = 5.1615;
 
+const unsigned char steeringwheel_n_values = 1;
+
 class Sensor
 {
 public:
@@ -114,7 +116,7 @@ float TempSensor(__u16 value, __u32 R1, __u32 R2, float c1, float c2, float c3);
 float vBatSensor(__u16 value);
 float vRefSensor(__u16 value);
 float internalTemp(__u16 value);
-float suspSensor(__u16 value);
+float suspSensor(__u16 value,bool direction, float center);
 float mapSensor(__u16 value);
 float mafSensor(__u16 value);
 float tempSensor(__u16 value,double a,double b,double c);
@@ -135,39 +137,59 @@ float U16toFloat(uint16_t value, uint8_t precision_bits);
 class SW_Settings
 {
 private:
-  unsigned char dValue;
-  float center;
-  float c_Region1;
-  signed short r_Region1;
-  float c_Region2;
-  signed short r_Region2;
-  float c_Region5;
-  signed short r_Region5;
-  float c_Region6;
-  signed short r_Region6;
-  unsigned char regions[3] = {0, 0, 0};
+  signed short dValueDir;
+  signed short dValueEsq;
+  double center;
+  
+  double oldvalues[steeringwheel_n_values];
+  double oldconv[steeringwheel_n_values];
+  unsigned char regions[steeringwheel_n_values];  
 
 public:
-  unsigned char mValue;
+  unsigned short mValueEsq;
+  unsigned short mValueDir;
 
-  SW_Settings(float centerDeg, uint8_t mVal)
-      : mValue(mVal), center(centerDeg)
-  {
-    dValue = 180 - mValue;
-    r_Region2 = -dValue + 1;
-    c_Region2 = fmodf((center + r_Region2), 360);
-    r_Region5 = dValue - 1;
-    c_Region5 = fmodf((center + r_Region5), 360);
-    r_Region1 = r_Region2 - dValue;
-    c_Region1 = fmodf((center + r_Region1), 360);
-    r_Region6 = r_Region5 + dValue;
-    c_Region6 = fmodf((center + r_Region6), 360);
+  void setZero(){
+    for (uint8_t i=0;i<steeringwheel_n_values;i++){
+      oldvalues[i]=0;
+      oldconv[i]=0;
+      regions[i]=0;
+    }
   }
+
+  SW_Settings(double centerDeg, uint16_t mValEsq, uint16_t mValDir)
+      : mValueEsq(2*mValEsq), mValueDir(2*mValDir), center(centerDeg)
+  {
+    dValueEsq = -static_cast<signed short>(360 - mValueDir); // Logica invertida
+    dValueDir = static_cast<signed short>(360 - mValueEsq);
+    setZero();
+  }
+    unsigned char getRegion(double value)
+  {
+    unsigned char region;
+    if (value > dValueEsq && value < dValueDir)
+    {
+      region = 2;
+    }
+    else if (value <= dValueEsq)
+    {
+      region = 1;
+    }
+    else if (value >= dValueEsq)
+    {
+      region = 3;
+    }
+    else{
+      region = 0;
+    }
+    return region;
+  }
+
   unsigned char getOldRegion()
   {
     unsigned char sum = 0;
     unsigned char n = 0;
-    for (unsigned char i = 0; i < 3; i++)
+    for (unsigned char i = 0; i < steeringwheel_n_values; i++)
     {
       if (regions[i] != 0)
       {
@@ -175,118 +197,129 @@ public:
         n++;
       }
     }
+    if (n == 0) {
+        return 0;             
+    }
     return sum / n;
   }
+
+  double getOldValues()
+  {
+    double sum = 0;
+    unsigned char n = 0;
+    for (unsigned char i = 0; i < steeringwheel_n_values; i++)
+    {
+      if (oldvalues[i] != 0)
+      {
+        sum += oldvalues[i];
+        n++;
+      }
+    }
+     if (n == 0) {
+      return 0.0;
+  }
+
+    return sum / n;
+  }
+
+  double getOldConvs()
+  {
+    double sum = 0;
+    unsigned char n = 0;
+    for (unsigned char i = 0; i < steeringwheel_n_values; i++)
+    {
+      if (oldconv[i] != 0)
+      {
+        sum += oldconv[i];
+        n++;
+      }
+    }
+     if (n == 0) {
+      return 0.0;
+  }
+
+    return sum / n;
+  }
+
   void setOldRegion(unsigned char value)
   {
-    for (unsigned char i = 2; i > 0; i--)
+    if (steeringwheel_n_values>1){
+    for (unsigned char i = steeringwheel_n_values-1; i > 0; i--)
     {
       regions[i] = regions[i - 1];
     }
+    }
     regions[0] = value;
+  }
+
+    void setOldValues(double value)
+  {
+    if (steeringwheel_n_values>1){
+    for (unsigned char i = steeringwheel_n_values-1; i > 0; i--)
+    {
+      oldvalues[i] = oldvalues[i - 1];
+    }
+  }
+    oldvalues[0] = value;
+  }
+
+      void setOldConv(double value)
+  {
+    if (steeringwheel_n_values>1){
+    for (unsigned char i = steeringwheel_n_values-1; i > 0; i--)
+    {
+      oldconv[i] = oldconv[i - 1];
+    }
+  }
+    oldconv[0] = value;
   }
   
   String steeringWheelValue(unsigned short r_value)
   {
     float prop = vRef_Proportion(r_value);
-    float middle =0;
-    float value = (prop*360);
+    double value = (prop*360);
 
     static bool hypothetical = 1;
     static unsigned char current_region = 0;
     static unsigned char old_region;
-    float conValue;
+    static double old_value;
+    static double old_conv;
     String retValue = "";
-    float test_value = fmodf(((value - center) + 540), 360) - 180;
+    double conv_value = fmodf(((value - center) + 540), 360) - 180;
 
     if (hypothetical)
     {
-      if (test_value > r_Region2 && test_value < r_Region5)
+      if (conv_value > dValueEsq && conv_value < dValueDir)
       {
         hypothetical = 0;
-        if (test_value > r_Region2 && test_value < 0)
-        {
-          current_region = 3;
-          conValue = test_value;
-        }
-        else
-        {
-          current_region = 4;
-          conValue = test_value;
-        }
-      }
-      else if (test_value <= r_Region2 && test_value >= r_Region1)
-      {
-        current_region = 2;
-        conValue = fmodf(((value - c_Region2) + 540), 360) - 180 + r_Region2;
-      }
-      else if (test_value < r_Region1)
-      {
-        current_region = 1;
-        conValue = fmodf(((value - c_Region1) + 540), 360) - 180 + r_Region1;
       }
     }
     else
     {
       old_region = getOldRegion();
-      if (old_region == 1)
+      old_value = getOldValues();
+      old_conv = getOldConvs();
+      if (conv_value > dValueEsq && conv_value < dValueDir)
       {
-        test_value = fmodf(((value - c_Region1) + 540), 360) - 180 + r_Region1;
+        current_region = getRegion(conv_value);
       }
-      else if (old_region == 2)
-      {
-        test_value = fmodf(((value - c_Region2) + 540), 360) - 180 + r_Region2;
+      else{
+        conv_value = fmodf(((value - old_value) + 540), 360) - 180 + old_conv;
+        current_region = getRegion(conv_value);
+        if ((current_region ==1 && old_region==3) || (current_region ==3 && old_region==1))
+        {
+          hypothetical = 1;
+        }
       }
-      else if (old_region == 5)
-      {
-        test_value = fmodf(((value - c_Region5) + 540), 360) - 180 + r_Region5;
-      }
-      else if (old_region == 6)
-      {
-        test_value = fmodf(((value - c_Region6) + 540), 360) - 180 + r_Region6;
-      }
-      else
-      {
-        test_value = fmodf(((value - center) + 540), 360) - 180;
-      }
-
-      if (test_value > r_Region2 && test_value < 0)
-      {
-        current_region = 3;
-        conValue = test_value;
-      }
-      else if (test_value >= 0 && test_value < r_Region5)
-      {
-        current_region = 4;
-      }
-      else if (test_value <= r_Region1 && (old_region == 1 || old_region == 2))
-      {
-        current_region = 1;
-      }
-      else if (test_value <= r_Region2 && (old_region == 1 || old_region == 2 || old_region == 3))
-      {
-        current_region = 2;
-      }
-      else if (test_value >= r_Region6 && (old_region == 5 || old_region == 6))
-      {
-        current_region = 6;
-      }
-      else if (test_value >= r_Region5 && (old_region == 4 || old_region == 5 || old_region == 6))
-      {
-        current_region = 5;
-      }
-
-      else
-      {
-        hypothetical = 1;
-      }
-    }
-    retValue = String(test_value / 2);
+    } 
+    retValue = String(conv_value / 2);
     if (hypothetical)
     {
       retValue = retValue + "?";
     }
     setOldRegion(current_region);
+    setOldValues(value);
+    setOldConv(conv_value);
     return retValue;
   }
 };

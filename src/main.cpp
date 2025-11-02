@@ -11,6 +11,7 @@ uint32_t timeValues[BUFFER_NUMBER][BUFFER_LENGTH];
 
 
 SemaphoreHandle_t sdMutex;
+SemaphoreHandle_t i2cMutex;
 
 volatile uint8_t n_rpm = 0;
 volatile bool rpm_ready = 0;
@@ -68,6 +69,7 @@ void setup()
 {
   memset(sensorValues, 0, sizeof(sensorValues));
   sdMutex = xSemaphoreCreateMutex();
+  i2cMutex = xSemaphoreCreateMutex();
   string_flag = 0;
   Wire.begin(25, 26);
   Wire.setClock(400000);
@@ -86,7 +88,7 @@ void setup()
 
     I2C_MPU6050.beginTransmission(MPU_addr);
     I2C_MPU6050.write(0x6B); // PWR_MGMT_1
-    I2C_MPU6050.write(0x00); // Desativa o modo de sleep
+    I2C_MPU6050.write(0x01); 
     I2C_MPU6050.endTransmission();
 
     I2C_MPU6050.beginTransmission(MPU_addr);
@@ -311,6 +313,26 @@ void setup()
       2,          // Priority of the task
       NULL,       // Task handle
       0           // Core where the task should run (0 or 1)
+  );
+
+   xTaskCreatePinnedToCore(
+      TempTask,    // Function to implement the task
+      "Temp Task", // Name of the task
+      2048,       // Stack size in words
+      NULL,       // Task input parameter
+      2,          // Priority of the task
+      NULL,       // Task handle
+      0           // Core where the task should run (0 or 1)
+  );
+
+  xTaskCreatePinnedToCore(
+      SIM_Task,    // Function to implement the task
+      "SIM Task", // Name of the task
+      8192,       // Stack size in words
+      NULL,       // Task input parameter
+      1,          // Priority of the task
+      NULL,       // Task handle
+      1           // Core where the task should run (0 or 1)
   );
 }
 
@@ -731,16 +753,22 @@ void fn_Data_01(__u8 data[DATA_01_DLC])
 
 void fn_Data_02(__u8 data[DATA_02_DLC])
 {
+
+    const static float Susp_FR_Center = 0;
+  const static float Susp_FL_Center = 0;
+  const static float Susp_RR_Center = 0;
+  const static float Susp_RL_Center = 0;
+
   __u16 r_Susp_FR = ((data[1] & 0x0F) << 8) + data[0];
   __u16 r_Susp_FL = (data[2] << 4) + ((data[1] >> 4) & 0x0F);
   __u16 r_Susp_RR = ((data[4] & 0x0F) << 8) + data[3];
   __u16 r_Susp_RL = (data[5] << 4) + ((data[4] >> 4) & 0x0F);
   __u16 r_WheelAngle = ((data[7] & 0x0F) << 8) + data[6];
 
-  float Susp_FR = suspSensor(r_Susp_FR);
-  float Susp_FL = suspSensor(r_Susp_FL);
-  float Susp_RR = suspSensor(r_Susp_RR);
-  float Susp_RL = suspSensor(r_Susp_RL);
+  float Susp_FR = suspSensor(r_Susp_FR,0,Susp_FR_Center);
+  float Susp_FL = suspSensor(r_Susp_FL,1,Susp_FL_Center);
+  float Susp_RR = suspSensor(r_Susp_RR,0,Susp_RR_Center);
+  float Susp_RL = suspSensor(r_Susp_RL,1,Susp_RL_Center);
   String WheelAngle = SteeringWheel.steeringWheelValue(r_WheelAngle);
 
   sensorUpdate(Susp_FR, Susp_Pos_FR_Sensor.index);
@@ -1088,16 +1116,16 @@ void AccelGyro_task1(void *parameter){
 
   int16_t AcX, AcY, AcZ;
   int16_t AcXf, AcYf, AcZf;
-  AcXf=0;
-  AcYf=0;
-  AcZf=2457;
+  AcXf=-819;
+  AcYf=164;
+  AcZf=819;
   int16_t AcMod;
   int16_t GyX, GyY, GyZ;
   uint8_t AccData[8];
   uint8_t GyroData[8];
-  float roll_rate = 1.3;
-  float pitch_rate = -3.25;
-  float yaw_rate = -1.12;
+  int16_t roll_rate = -92;
+  int16_t pitch_rate = 121;
+  int16_t yaw_rate = -121;
   float RateRoll,RatePitch,RateYaw;
   float aX,aY,aZ;
   float aMod;
@@ -1105,6 +1133,15 @@ void AccelGyro_task1(void *parameter){
   for (;;)
   {
     if (acc_start){
+      if (xSemaphoreTake(i2cMutex, portMAX_DELAY) == pdTRUE) {
+    uint8_t pwr_mgmt_1 = readRegister(0x6B);
+    if (pwr_mgmt_1 & 0x40) { // bit SLEEP ativo
+      I2C_MPU6050.beginTransmission(MPU_addr);
+      I2C_MPU6050.write(0x6B);
+      I2C_MPU6050.write(0x01); // reativa e define GyroX como clock
+      I2C_MPU6050.endTransmission();
+      Serial.println("MPU6050 reativado do modo sleep");
+    }
     
     I2C_MPU6050.beginTransmission(MPU_addr);
     I2C_MPU6050.write(0x3B); // Endereço do primeiro registrador de dados
@@ -1117,25 +1154,28 @@ void AccelGyro_task1(void *parameter){
     I2C_MPU6050.requestFrom(MPU_addr, 14, true);
 
     AcX = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
-    AcX+=AcXf;
     AcY = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
-    AcY+=AcYf;
     AcZ = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
-    AcZ+=AcZf;
+    
     I2C_MPU6050.read(); I2C_MPU6050.read(); // Temperatura (ignorada)
     GyX = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
     GyY = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
     GyZ = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
 
-    
+    xSemaphoreGive(i2cMutex);
+    }
+    AcX+=AcXf;
+    AcY+=AcYf;
+    AcZ+=AcZf;
+
+    GyX-=roll_rate;
+    GyY-=pitch_rate;
+    GyZ-=yaw_rate;
 
     RateRoll=(float)GyX/65.5;
     RatePitch=(float)GyY/65.5;
     RateYaw=(float)GyZ/65.5;
 
-    RateRoll-=roll_rate;
-    RatePitch-=pitch_rate;
-    RateYaw-=yaw_rate;
 
     aX = (float)AcX/16384;
     aY = (float)AcY/16384;
@@ -1336,4 +1376,80 @@ void MessagesFN(void *parameter){
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
 
+}
+
+uint8_t readRegister(uint8_t reg) {
+  I2C_MPU6050.beginTransmission(MPU_addr);
+  I2C_MPU6050.write(reg);
+  I2C_MPU6050.endTransmission(false);
+  I2C_MPU6050.requestFrom(MPU_addr, 1, true);
+  if (I2C_MPU6050.available()) {
+    return I2C_MPU6050.read();
+  }
+  return 0xFF; // valor inválido se falhar
+}
+
+void TempTask(void *parameter){
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+  const TickType_t xFrequency = pdMS_TO_TICKS(TEMP_TIMER);
+
+  static const unsigned char Register = 0x07;
+  double data;
+  for (;;)
+  {
+    if (xSemaphoreTake(i2cMutex, portMAX_DELAY) == pdTRUE) {
+      I2C_MPU6050.beginTransmission(GY906_ADD);
+      I2C_MPU6050.write(0x3B); // Endereço do primeiro registrador de dados
+    if (!I2C_MPU6050.endTransmission(false)){
+    }
+    I2C_MPU6050.requestFrom(GY906_ADD, 3, true);
+    if (I2C_MPU6050.available() >= 3) {
+    uint8_t lsb = I2C_MPU6050.read();
+    uint8_t msb = I2C_MPU6050.read();
+    uint8_t pec = I2C_MPU6050.read(); // byte de verificação, pode ser ignorado
+    data = (msb << 8) | lsb;
+  } else {
+    Serial.println("Error"); // erro de leitura
+  }
+  xSemaphoreGive(i2cMutex);
+    }
+  // Conversão conforme datasheet
+    Serial.println((data * 0.02) - 273.15);
+    vTaskDelayUntil(&xLastWakeTime, xFrequency);
+  }
+}
+
+
+void SIM_Task(void *parameter){
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+  static TickType_t FirstTime = xTaskGetTickCount();
+  const TickType_t xFrequency1 = pdMS_TO_TICKS(SIM_SETUP_TIMER);
+  const TickType_t xFrequency2 = pdMS_TO_TICKS(SIM_TIMER);
+  static bool setup = 0;
+  static bool init = 0;
+  uint16_t data;
+  for (;;)
+  {
+    if(!setup){
+      /*if (!init){
+      simCOM.begin(115200, SERIAL_8N1, RX_PIN, TX_PIN);
+      while(!simCOM){}
+      }
+      init=1;
+      if(connection_val()){
+        setup=1;
+      }
+      
+      if (setup){
+        mqtt_start();
+      }*/
+      vTaskDelayUntil(&xLastWakeTime, xFrequency1);
+    }
+
+    /*else if (setup){
+
+      vTaskDelayUntil(&xLastWakeTime, xFrequency2);
+    }*/
+    
+  }
 }

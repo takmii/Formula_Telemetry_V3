@@ -40,10 +40,10 @@ float internalTemp(__u16 value){
   return tempC;
 }
 
-float suspSensor(__u16 value){
+float suspSensor(__u16 value, bool direction, float center){
+  int8_t dir = direction==1?1:-1;
   float prop = vRef_Proportion(value);
-  float middle =0;
-  return roundf(((prop*120) - middle) * 10.0f) / 10.0f;
+  return roundf(((prop*120) - center) * 10.0f * dir) / 10.0f;
 }
 
 float mapSensor(__u16 value){

@@ -1,6 +1,6 @@
 #include "sensorsSetup.h"
 
-SW_Settings SteeringWheel(353, 135);
+SW_Settings SteeringWheel(268.08,125,155);
 
 Sensor Voltage_Sensor;
 Sensor Internal_Temperature_Sensor;

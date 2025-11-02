@@ -2,7 +2,9 @@
 #define LIBS_H
 
 //#include <SdFat.h>
+#include <Formula_SIM7600G.h>
 #include <Wire.h>
+#include <Adafruit_MLX90614.h>
 #include <RTClib.h>
 //#include <I2Cdev.h>
 //#include <MPU6050.h>
@@ -40,11 +42,17 @@
 #define SD_VERIFY_FILESIZE_TIMER 60000
 #define SD_VERIFY_TIMER 5000
 #define MESSAGES_TIMER 10000
+#define TEMP_TIMER 250
+#define SIM_SETUP_TIMER 500
+#define SIM_TIMER 100
 #define CALIBRACAO_TIMER 500
-#define ACC_TIMER CAN_TASK_TIMER
+#define ACC_TIMER 5
 
 #define CAN_TX_PIN GPIO_NUM_22
 #define CAN_RX_PIN GPIO_NUM_21
+
+#define RX_PIN GPIO_NUM_16
+#define TX_PIN GPIO_NUM_17
 
 #define TIMEBASE 100
 
@@ -56,6 +64,8 @@
 #define RPM_PIN 32
 
 #define GPIO_LEDRPM GPIO_NUM_0
+
+#define GY906_ADD 0x5A
 
 void writeCSV(const char * filename, __u8 size);
 void writeHeader(const char * filename, __u8 size);
@@ -70,6 +80,8 @@ void sdVerify(void *parameter);
 void CAN_receiveTask(void *parameter);
 void RPM_task(void *parameter);
 void AccelGyro_task1(void *parameter);
+void TempTask(void *parameter);
+void SIM_Task(void *parameter);
 void MessagesFN(void *parameter);
 void disableBluetooth();
 void getRTC();
@@ -110,12 +122,14 @@ void IRAM_ATTR handleEdge();
 
 void init_twai();
 
+uint8_t readRegister(uint8_t reg);
+
 TwoWire I2C_MPU6050 = TwoWire(1);
 const uint8_t MPU_addr = 0x68;
 //MPU6050 mpu(MPU_addr,&I2C_MPU6050);
 
 
-
+Adafruit_MLX90614 mlx = Adafruit_MLX90614();
 
 WiFiClientSecure espClient;
 PubSubClient client(espClient);
