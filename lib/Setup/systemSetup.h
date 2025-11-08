@@ -2,6 +2,8 @@
 #define LIBS_H
 
 //#include <SdFat.h>
+
+
 #include <Formula_SIM7600G.h>
 #include <Wire.h>
 #include <Adafruit_MLX90614.h>
@@ -48,6 +50,8 @@
 #define CALIBRACAO_TIMER 500
 #define ACC_TIMER 5
 
+#define MQTT_TIME_TIMER 5*CAN_TASK_TIMER
+
 #define CAN_TX_PIN GPIO_NUM_22
 #define CAN_RX_PIN GPIO_NUM_21
 
@@ -67,11 +71,6 @@
 
 #define GY906_ADD 0x5A
 
-void writeCSV(const char * filename, __u8 size);
-void writeHeader(const char * filename, __u8 size);
-void createDirectory(const char * dir);
-String verifyFilename(String filename);
-
 void sdTask(void *parameter);
 void sdFlush(void *parameter);
 //void sdFile(void *parameter);
@@ -82,7 +81,14 @@ void RPM_task(void *parameter);
 void AccelGyro_task1(void *parameter);
 void TempTask(void *parameter);
 void SIM_Task(void *parameter);
+void MQTT_Time_Task(void *parameter);
 void MessagesFN(void *parameter);
+
+void writeCSV(const char * filename, __u8 size);
+void writeHeader(const char * filename, __u8 size);
+void createDirectory(const char * dir);
+String verifyFilename(String filename);
+
 void disableBluetooth();
 void getRTC();
 void setRTC();

@@ -12,6 +12,7 @@ uint32_t timeValues[BUFFER_NUMBER][BUFFER_LENGTH];
 
 SemaphoreHandle_t sdMutex;
 SemaphoreHandle_t i2cMutex;
+SemaphoreHandle_t xMqttMutex;
 
 volatile uint8_t n_rpm = 0;
 volatile bool rpm_ready = 0;
@@ -70,6 +71,7 @@ void setup()
   memset(sensorValues, 0, sizeof(sensorValues));
   sdMutex = xSemaphoreCreateMutex();
   i2cMutex = xSemaphoreCreateMutex();
+  xMqttMutex = xSemaphoreCreateMutex();
   string_flag = 0;
   Wire.begin(25, 26);
   Wire.setClock(400000);
@@ -78,6 +80,11 @@ void setup()
 
   Serial.begin(115200);
   while (!Serial)
+  {
+  }
+  simCOM.setRxBufferSize(2048);
+  simCOM.begin(115200, SERIAL_8N1, RX_PIN, TX_PIN);
+  while(!simCOM)
   {
   }
 
@@ -329,6 +336,16 @@ void setup()
       SIM_Task,    // Function to implement the task
       "SIM Task", // Name of the task
       8192,       // Stack size in words
+      NULL,       // Task input parameter
+      1,          // Priority of the task
+      NULL,       // Task handle
+      1           // Core where the task should run (0 or 1)
+  );
+
+  xTaskCreatePinnedToCore(
+      MQTT_Time_Task,    // Function to implement the task
+      "MQTT Time Task", // Name of the task
+      1024,       // Stack size in words
       NULL,       // Task input parameter
       1,          // Priority of the task
       NULL,       // Task handle
@@ -1231,6 +1248,8 @@ void fn_Group_0(__u8 data[GROUP0_DLC])
   __u16 RPM = MS2_U16_Calibration(r_RPM,MS2_1_cal,MS2_1_cal);
   
 
+  setPayload(rpm_byte,RPM);
+
   sensorUpdate(seconds, MS2_Sec.index);
   sensorUpdate(pw1, MS2_Bank1.index);
   sensorUpdate(pw2, MS2_Bank2.index);
@@ -1397,7 +1416,7 @@ void TempTask(void *parameter){
   double data;
   for (;;)
   {
-    if (xSemaphoreTake(i2cMutex, portMAX_DELAY) == pdTRUE) {
+    /*if (xSemaphoreTake(i2cMutex, portMAX_DELAY) == pdTRUE) {
       I2C_MPU6050.beginTransmission(GY906_ADD);
       I2C_MPU6050.write(0x3B); // Endereço do primeiro registrador de dados
     if (!I2C_MPU6050.endTransmission(false)){
@@ -1414,7 +1433,7 @@ void TempTask(void *parameter){
   xSemaphoreGive(i2cMutex);
     }
   // Conversão conforme datasheet
-    Serial.println((data * 0.02) - 273.15);
+    Serial.println((data * 0.02) - 273.15);*/
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
 }
@@ -1425,31 +1444,91 @@ void SIM_Task(void *parameter){
   static TickType_t FirstTime = xTaskGetTickCount();
   const TickType_t xFrequency1 = pdMS_TO_TICKS(SIM_SETUP_TIMER);
   const TickType_t xFrequency2 = pdMS_TO_TICKS(SIM_TIMER);
-  static bool setup = 0;
+  static bool sim_setup = 0;
+  static bool mqtt_started = 0;
   static bool init = 0;
+  static bool reset = 0;
+  bool first_close = 1;
+  bool first_open = 1;
   uint16_t data;
   for (;;)
   {
-    if(!setup){
-      /*if (!init){
-      simCOM.begin(115200, SERIAL_8N1, RX_PIN, TX_PIN);
-      while(!simCOM){}
+    if(!sim_setup){
+      if (!init){
+      String msg = "";
+      bool m1=0;
+      bool m2=0;
+      TickType_t startTick = xTaskGetTickCount();
+      TickType_t lastDataTick = startTick;
+      bool init_get = 0;
+      msg = readSIM(30000); //espera 20 segundos para iniciar 
+        if (msg.indexOf("+CPIN: READY") != -1 && !m1) {
+        m1=true;
+        Serial.println("SIM OK");
       }
-      init=1;
-      if(connection_val()){
-        setup=1;
+      if (msg.indexOf("SMS DONE") != -1 && !m2){
+        m2=true;
+        Serial.println("SMS OK");
       }
+      if (msg.indexOf("PB DONE") != -1) {
+        Serial.println("SIM7600 Initialized");
+        init=1;
+      }
+      simCOM.println("AT");
       
-      if (setup){
-        mqtt_start();
-      }*/
+      
+      Serial.println(msg);
+      msg = "";
+      vTaskDelay(pdMS_TO_TICKS(10000));
+      //init=1;
+      }
+      unsigned char val_flag = connection_val();
+      if(val_flag==1){
+        reset = 0;
+        sim_setup=1;
+      }
       vTaskDelayUntil(&xLastWakeTime, xFrequency1);
     }
 
-    /*else if (setup){
-
+    else if (sim_setup){
+      
+      if (!mqtt_started){
+        if (mqtt_start(first_open)){
+          mqtt_started = 1;
+          first_open = 1;
+        }
+        else{
+          first_open = 0;
+        }
+      }
+      if(mqtt_started){
+        if(mqtt_payload[0]!=0){
+        if(!mqtt_publish("Test2142151",mqtt_payload)){
+          
+          while(!mqtt_close(first_close)){
+            first_close = 0;
+          }
+          vTaskDelay(pdMS_TO_TICKS(100));
+          mqtt_started=0;
+        }
+        else{
+          first_close = 1;
+        }
+        }
+      }
       vTaskDelayUntil(&xLastWakeTime, xFrequency2);
-    }*/
-    
+    }
+  }
+}
+
+void MQTT_Time_Task(void *parameter){
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+  const TickType_t xFrequency = pdMS_TO_TICKS(MQTT_TIME_TIMER);
+  for (;;)
+  {
+    while(row_write!=0){}
+    while(timeValues[buffer_write]<timeValues[buffer_write-1]){}
+    setPayload32(time_byte, (unsigned int)timeValues[buffer_write]);
+    vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
 }
