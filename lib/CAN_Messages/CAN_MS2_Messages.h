@@ -20,6 +20,9 @@ const unsigned char GROUP2_DLC = 8;
 const unsigned char GROUP3_ID = 0x03;
 const unsigned char GROUP3_DLC = 8;
 
+const unsigned char GROUP4_ID = 0x04;
+const unsigned char GROUP4_DLC = 8;
+
 const unsigned char GROUP7_ID = 0x07;
 const unsigned char GROUP7_DLC = 8;
 

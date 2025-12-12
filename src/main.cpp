@@ -772,9 +772,9 @@ void fn_Data_02(__u8 data[DATA_02_DLC])
 {
 
     const static float Susp_FR_Center = 0;
-  const static float Susp_FL_Center = 0;
-  const static float Susp_RR_Center = 0;
-  const static float Susp_RL_Center = 0;
+  const static float Susp_FL_Center = 74.9;
+  const static float Susp_RR_Center = 82.1;
+  const static float Susp_RL_Center = 23.1;
 
   __u16 r_Susp_FR = ((data[1] & 0x0F) << 8) + data[0];
   __u16 r_Susp_FL = (data[2] << 4) + ((data[1] >> 4) & 0x0F);
@@ -1317,6 +1317,26 @@ void fn_Group_3(__u8 data[GROUP3_DLC])
   sensorUpdate(Voltage, MS2_Voltage.index);
   sensorUpdate(AFR1, MS2_AFR1.index);
   sensorUpdate(AFR2, MS2_AFR2.index);
+}
+
+void fn_Group_4(__u8 data[GROUP4_DLC])
+{
+  __s16 r_knockIn = word(data[0],data[1]);
+  __s16 r_egoCor1 = word(data[2],data[3]);
+  __s16 r_egoCor2 = word(data[4],data[5]);
+  __s16 r_aircor = word(data[6],data[7]);
+
+
+  __s16 knockIn = MS2_S16_Calibration(r_knockIn,MS2_1_cal,MS2_10_cal);
+  __s16 egoCor1 = MS2_Float_Calibration(r_egoCor1,MS2_1_cal,MS2_10_cal);
+  __s16 egoCor1 = MS2_Float_Calibration(r_egoCor2,MS2_1_cal,MS2_10_cal);
+  __s16 aircor = MS2_Float_Calibration(r_aircor,MS2_1_cal,MS2_10_cal);
+  
+
+  sensorUpdate(knockIn, MS2_knockIn.index);
+  sensorUpdate(egoCor1, MS2_egoCorr1.index);
+  sensorUpdate(egoCor1, MS2_egoCorr2.index);
+  sensorUpdate(aircor, MS2_aircor.index);
 }
 
 void fn_Group_7(__u8 data[GROUP7_DLC])
