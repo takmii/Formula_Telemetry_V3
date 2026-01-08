@@ -76,17 +76,18 @@ void setup()
   Wire.begin(25, 26);
   Wire.setClock(400000);
   I2C_MPU6050.begin(4,5);
-  I2C_MPU6050.setClock(400000);
+  I2C_MPU6050.setClock(100000);
+  I2C_MPU6050.setTimeout(1000);
 
-  Serial.begin(115200);
+  Serial.begin(921600);
   while (!Serial)
   {
   }
-  simCOM.setRxBufferSize(2048);
+  /*simCOM.setRxBufferSize(2048);
   simCOM.begin(115200, SERIAL_8N1, RX_PIN, TX_PIN);
   while(!simCOM)
   {
-  }
+  }*/
 
   I2C_MPU6050.beginTransmission(0x68);
   if(I2C_MPU6050.endTransmission()==0){
@@ -265,7 +266,7 @@ void setup()
     xTaskCreatePinnedToCore(
       Calibracao,    // Function to implement the task
       "Calibracao", // Name of the task
-      2048,       // Stack size in words
+      1024,       // Stack size in words
       NULL,       // Task input parameter
       1,          // Priority of the task
       NULL,       // Task handle
@@ -332,7 +333,7 @@ void setup()
       0           // Core where the task should run (0 or 1)
   );
 
-  xTaskCreatePinnedToCore(
+  /*xTaskCreatePinnedToCore(
       SIM_Task,    // Function to implement the task
       "SIM Task", // Name of the task
       8192,       // Stack size in words
@@ -340,9 +341,9 @@ void setup()
       1,          // Priority of the task
       NULL,       // Task handle
       1           // Core where the task should run (0 or 1)
-  );
+  );*/
 
-  xTaskCreatePinnedToCore(
+  /*xTaskCreatePinnedToCore(
       MQTT_Time_Task,    // Function to implement the task
       "MQTT Time Task", // Name of the task
       1024,       // Stack size in words
@@ -350,7 +351,7 @@ void setup()
       1,          // Priority of the task
       NULL,       // Task handle
       1           // Core where the task should run (0 or 1)
-  );
+  );*/
 }
 
 void loop()
@@ -1018,42 +1019,17 @@ void Calibracao(void *parameter)
     //Serial.println(xPortGetFreeHeapSize());
 
     if (!time_set_ack){
-      uint8_t day = espTime.day;
-      uint8_t month = espTime.month;
-      uint16_t year = espTime.year;
-      uint8_t hour = espTime.hour;  
-      uint8_t minute = espTime.minute;
-      uint8_t second = espTime.second;
-      TimeSet_Data[0] = day&0x1F;
-      TimeSet_Data[0]|= ((month&0x0F)<<5);
-      TimeSet_Data[1] = (month>>3)&0x01;
-      TimeSet_Data[1]|= (year&0X7F)<<1;
-      TimeSet_Data[2] = (year>>7)&0x1F;
-      TimeSet_Data[2] |= (hour&0x07)<<5;
-      TimeSet_Data[3] = (hour>>3)&0x03;
-      TimeSet_Data[3]|= (minute&0x3F)<<2;
-      TimeSet_Data[4] = second&0x3F;
+      TimeSet_Data[0] = espTime.day&0x1F;
+      TimeSet_Data[0]|= ((espTime.month&0x0F)<<5);
+      TimeSet_Data[1] = (espTime.month>>3)&0x01;
+      TimeSet_Data[1]|= (espTime.year&0X7F)<<1;
+      TimeSet_Data[2] = (espTime.year>>7)&0x1F;
+      TimeSet_Data[2] |= (espTime.hour&0x07)<<5;
+      TimeSet_Data[3] = (espTime.hour>>3)&0x03;
+      TimeSet_Data[3]|= (espTime.minute&0x3F)<<2;
+      TimeSet_Data[4] = espTime.second&0x3F;
 
       sendCANMessage(TIMESET_ID, TimeSet_Data, TIMESET_DLC);
-    }
-
-    uint8_t index = RPM_Sensor.index;
-    bool print =0;
-    uint8_t time=0;
-    if (row_write==0){
-      while(row_write==0&&time<5){
-        vTaskDelay(pdMS_TO_TICKS(1));
-        time++;
-      }
-    }
-    if (row_write!=0){
-      print =1;
-    }
-    if (print){
-      char *value = sensorValues[buffer_write][row_write-1][index];
-      if (value[0]!='\0'){
-      Serial.println(value);
-      }
     }
     vTaskDelay(xFrequency);
   }
@@ -1127,7 +1103,7 @@ void Calibracao(void *parameter)
 
 }*/
 
-void AccelGyro_task1(void *parameter){
+/*void AccelGyro_task1(void *parameter){
   TickType_t xLastWakeTime = xTaskGetTickCount();
   const TickType_t xFrequency = pdMS_TO_TICKS(ACC_TIMER);
 
@@ -1201,6 +1177,15 @@ void AccelGyro_task1(void *parameter){
     AcMod = (int16_t)sqrt((double)((int32_t)AcX * AcX + (int32_t)AcY * AcY + (int32_t)AcZ * AcZ));
     aMod = (float)AcMod/16384;
 
+    Serial.print("AcX: "); Serial.print(aX); Serial.print(" ");
+    Serial.print(" AcY: "); Serial.print(aY); Serial.print(" ");
+    Serial.print(" AcZ: "); Serial.print(aZ); Serial.print(" ");
+    Serial.print(" AcMod: "); Serial.print(aMod); Serial.print(" ");
+    Serial.print(" GyX: "); Serial.print(RateRoll); Serial.print(" ");
+    Serial.print(" GyY: "); Serial.print(RatePitch); Serial.print(" ");
+    Serial.print(" GyZ: "); Serial.println(RateYaw);
+
+
     sensorUpdate(aX,Accel_X.index);
     sensorUpdate(aY,Accel_Y.index);
     sensorUpdate(aZ,Accel_Z.index);
@@ -1233,6 +1218,190 @@ void AccelGyro_task1(void *parameter){
     }
     vTaskDelay(xFrequency);
   }
+}*/
+
+void AccelGyro_task1(void *parameter){
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+  const TickType_t xFrequency = pdMS_TO_TICKS(ACC_TIMER);
+
+  int16_t AcX, AcY, AcZ;
+  int16_t AcXf = -819;
+  int16_t AcYf = 164;
+  int16_t AcZf = 819;
+  int16_t AcMod;
+  int16_t GyX, GyY, GyZ;
+  uint8_t AccData[8];
+  uint8_t GyroData[8];
+  int16_t roll_rate = -92;
+  int16_t pitch_rate = 121;
+  int16_t yaw_rate = -121;
+  float RateRoll, RatePitch, RateYaw;
+  float aX, aY, aZ;
+  float aMod;
+  
+  uint8_t errorCount = 0;
+  uint8_t sleepCheckCounter = 0; // Só verifica sleep a cada N ciclos
+
+  for (;;)
+  {
+    if (acc_start) {
+      if (xSemaphoreTake(i2cMutex, portMAX_DELAY) == pdTRUE) {
+        
+        bool dataValid = false;
+        
+        // ⚠️ VERIFICA SLEEP APENAS A CADA 20 LEITURAS (evita sobrecarga I2C)
+        if (sleepCheckCounter >= 20) {
+          sleepCheckCounter = 0;
+          
+          I2C_MPU6050.beginTransmission(MPU_addr);
+          I2C_MPU6050.write(0x6B);
+          uint8_t error = I2C_MPU6050.endTransmission(false);
+          
+          if (error == 0) {
+            uint8_t bytesReceived = I2C_MPU6050.requestFrom(MPU_addr, (uint8_t)1, (uint8_t)true);
+            if (bytesReceived == 1) {
+              uint8_t pwr_mgmt_1 = I2C_MPU6050.read();
+              
+              if (pwr_mgmt_1 & 0x40) {
+                Serial.println("⚠️ MPU6050 em SLEEP! Reativando...");
+                I2C_MPU6050.beginTransmission(MPU_addr);
+                I2C_MPU6050.write(0x6B);
+                I2C_MPU6050.write(0x01);
+                I2C_MPU6050.endTransmission();
+                delay(50); // Aguarda acordar
+              }
+            }
+          }
+        }
+        sleepCheckCounter++;
+        
+        // ⚠️ LÊ DADOS DO ACELERÔMETRO E GIROSCÓPIO
+        I2C_MPU6050.beginTransmission(MPU_addr);
+        I2C_MPU6050.write(0x3B);
+        uint8_t error = I2C_MPU6050.endTransmission(false);
+        
+        if (error == 0) {
+          uint8_t bytesReceived = I2C_MPU6050.requestFrom(MPU_addr, (uint8_t)14, (uint8_t)true);
+          
+          if (bytesReceived == 14) {
+            AcX = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
+            AcY = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
+            AcZ = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
+            
+            I2C_MPU6050.read(); I2C_MPU6050.read(); // Temperatura
+            
+            GyX = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
+            GyY = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
+            GyZ = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
+            
+            dataValid = true;
+            accgyro_status = 2;
+            errorCount = 0;
+          } else {
+            accgyro_status = 1;
+            errorCount++;
+            Serial.printf("❌ Erro: esperava 14 bytes, recebeu %d\n", bytesReceived);
+            
+            // Limpa buffer se houver dados pendentes
+            while (I2C_MPU6050.available()) {
+              I2C_MPU6050.read();
+            }
+          }
+        } else {
+          accgyro_status = 1;
+          errorCount++;
+          Serial.printf("❌ Erro I2C: %d\n", error);
+        }
+        
+        xSemaphoreGive(i2cMutex);
+        
+        // ⚠️ REINICIA MPU SE MUITOS ERROS
+        if (errorCount > 10) {
+          Serial.println("🔄 Muitos erros! Reiniciando MPU6050...");
+          if (xSemaphoreTake(i2cMutex, portMAX_DELAY) == pdTRUE) {
+            // Reset completo
+            I2C_MPU6050.beginTransmission(MPU_addr);
+            I2C_MPU6050.write(0x6B);
+            I2C_MPU6050.write(0x80); // Reset bit
+            I2C_MPU6050.endTransmission();
+            delay(100);
+            
+            // Reconfigura
+            I2C_MPU6050.beginTransmission(MPU_addr);
+            I2C_MPU6050.write(0x6B);
+            I2C_MPU6050.write(0x01);
+            I2C_MPU6050.endTransmission();
+            
+            xSemaphoreGive(i2cMutex);
+          }
+          errorCount = 0;
+          vTaskDelay(pdMS_TO_TICKS(200));
+          continue;
+        }
+        
+        // ⚠️ SÓ PROCESSA SE DADOS VÁLIDOS
+        if (dataValid) {
+          AcX += AcXf;
+          AcY += AcYf;
+          AcZ += AcZf;
+
+          GyX -= roll_rate;
+          GyY -= pitch_rate;
+          GyZ -= yaw_rate;
+
+          RateRoll = (float)GyX / 65.5;
+          RatePitch = (float)GyY / 65.5;
+          RateYaw = (float)GyZ / 65.5;
+
+          aX = (float)AcX / 16384;
+          aY = (float)AcY / 16384;
+          aZ = (float)AcZ / 16384;
+
+          AcMod = (int16_t)sqrt((double)((int32_t)AcX * AcX + (int32_t)AcY * AcY + (int32_t)AcZ * AcZ));
+          aMod = (float)AcMod / 16384;
+
+          Serial.print("AcX: "); Serial.print(aX);
+          Serial.print(" AcY: "); Serial.print(aY);
+          Serial.print(" AcZ: "); Serial.print(aZ);
+          Serial.print(" AcMod: "); Serial.print(aMod);
+          Serial.print(" GyX: "); Serial.print(RateRoll);
+          Serial.print(" GyY: "); Serial.print(RatePitch);
+          Serial.print(" GyZ: "); Serial.println(RateYaw);
+
+          sensorUpdate(aX, Accel_X.index);
+          sensorUpdate(aY, Accel_Y.index);
+          sensorUpdate(aZ, Accel_Z.index);
+          sensorUpdate(aMod, Accel.index);
+          sensorUpdate(RateRoll, Gyro_X.index);
+          sensorUpdate(RatePitch, Gyro_Y.index);
+          sensorUpdate(RateYaw, Gyro_Z.index);
+
+          AccData[0] = AcX & 0xFF;
+          AccData[1] = (AcX >> 8) & 0xFF;
+          AccData[2] = AcY & 0xFF;
+          AccData[3] = (AcY >> 8) & 0xFF;
+          AccData[4] = AcZ & 0xFF;
+          AccData[5] = (AcZ >> 8) & 0xFF;
+          AccData[6] = AcMod & 0xFF;
+          AccData[7] = (AcMod >> 8) & 0xFF;
+
+          sendCANMessage(ACC_ID, AccData, ACC_DLC);
+
+          GyroData[0] = GyX & 0xFF;
+          GyroData[1] = (GyX >> 8) & 0xFF;
+          GyroData[2] = GyY & 0xFF;
+          GyroData[3] = (GyY >> 8) & 0xFF;
+          GyroData[4] = GyZ & 0xFF;
+          GyroData[5] = (GyZ >> 8) & 0xFF;
+          GyroData[6] = 0;
+          GyroData[7] = 0;
+
+          sendCANMessage(GYRO_ID, GyroData, GYRO_DLC);
+        }
+      }
+    }
+    vTaskDelay(xFrequency);
+  }
 }
 
 void fn_Group_0(__u8 data[GROUP0_DLC])
@@ -1248,7 +1417,7 @@ void fn_Group_0(__u8 data[GROUP0_DLC])
   __u16 RPM = MS2_U16_Calibration(r_RPM,MS2_1_cal,MS2_1_cal);
   
 
-  setPayload(rpm_byte,RPM);
+  //setPayload(rpm_byte,RPM);
 
   sensorUpdate(seconds, MS2_Sec.index);
   sensorUpdate(pw1, MS2_Bank1.index);
@@ -1319,7 +1488,7 @@ void fn_Group_3(__u8 data[GROUP3_DLC])
   sensorUpdate(AFR2, MS2_AFR2.index);
 }
 
-void fn_Group_4(__u8 data[GROUP4_DLC])
+/*void fn_Group_4(__u8 data[GROUP4_DLC])
 {
   __s16 r_knockIn = word(data[0],data[1]);
   __s16 r_egoCor1 = word(data[2],data[3]);
@@ -1329,7 +1498,7 @@ void fn_Group_4(__u8 data[GROUP4_DLC])
 
   __s16 knockIn = MS2_S16_Calibration(r_knockIn,MS2_1_cal,MS2_10_cal);
   __s16 egoCor1 = MS2_Float_Calibration(r_egoCor1,MS2_1_cal,MS2_10_cal);
-  __s16 egoCor1 = MS2_Float_Calibration(r_egoCor2,MS2_1_cal,MS2_10_cal);
+  __s16 egoCor2 = MS2_Float_Calibration(r_egoCor2,MS2_1_cal,MS2_10_cal);
   __s16 aircor = MS2_Float_Calibration(r_aircor,MS2_1_cal,MS2_10_cal);
   
 
@@ -1337,7 +1506,7 @@ void fn_Group_4(__u8 data[GROUP4_DLC])
   sensorUpdate(egoCor1, MS2_egoCorr1.index);
   sensorUpdate(egoCor1, MS2_egoCorr2.index);
   sensorUpdate(aircor, MS2_aircor.index);
-}
+}*/
 
 void fn_Group_7(__u8 data[GROUP7_DLC])
 {
@@ -1459,7 +1628,7 @@ void TempTask(void *parameter){
 }
 
 
-void SIM_Task(void *parameter){
+/*void SIM_Task(void *parameter){
   TickType_t xLastWakeTime = xTaskGetTickCount();
   static TickType_t FirstTime = xTaskGetTickCount();
   const TickType_t xFrequency1 = pdMS_TO_TICKS(SIM_SETUP_TIMER);
@@ -1551,4 +1720,4 @@ void MQTT_Time_Task(void *parameter){
     setPayload32(time_byte, (unsigned int)timeValues[buffer_write]);
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
-}
+}*/

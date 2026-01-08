@@ -77,10 +77,10 @@ Sensor MS2_BatchFire_Inj_Events;
 Sensor MS2_EngineStatus;
 Sensor MS2_Bank1_AFR_Tgt;
 Sensor MS2_Bank2_AFR_Tgt;
-Sensor MS2_knockIn;
-Sensor MS2_egoCorr1;
-Sensor MS2_egoCorr2;
-Sensor MS2_aircor;
+//Sensor MS2_knockIn;
+//Sensor MS2_egoCorr1;
+//Sensor MS2_egoCorr2;
+//Sensor MS2_aircor;
 Sensor Firewall_Temperature1_Sensor;
 Sensor Firewall_Temperature2_Sensor;
 Sensor Wing_Extensometer_1_Sensor;
@@ -166,10 +166,10 @@ Sensor *sensorIndex[] = {
     &MS2_Fin_Ign_Sprk_Adv,
     &MS2_BatchFire_Inj_Events,
     &MS2_EngineStatus,
-    &MS2_knockIn,
-    &MS2_egoCorr1,
-    &MS2_egoCorr2,
-    &MS2_aircor,
+    //&MS2_knockIn,
+    //&MS2_egoCorr1,
+    //&MS2_egoCorr2,
+    //&MS2_aircor,
     &Firewall_Temperature1_Sensor,
     &Firewall_Temperature2_Sensor,
     &Wing_Extensometer_1_Sensor,
@@ -267,10 +267,10 @@ void setSensorName()
     MS2_Fin_Ign_Sprk_Adv.name = "Final_Ign_Sprk_Adv (º)";
     MS2_BatchFire_Inj_Events.name = "BatchFire_Inj_Events";
     MS2_EngineStatus.name = "EngineStatus";
-    MS2_knockIn.name = "Knock_In (%)";
-    MS2_egoCorr1.name = "Ego_Cor_1 (%)";
-    MS2_egoCorr2.name = "Ego_Cor_1 (%)";
-    MS2_aircor.name = "Air_Cor (%)";
+    //MS2_knockIn.name = "Knock_In (%)";
+    //MS2_egoCorr1.name = "Ego_Cor_1 (%)";
+    //MS2_egoCorr2.name = "Ego_Cor_1 (%)";
+    //MS2_aircor.name = "Air_Cor (%)";
     Firewall_Temperature1_Sensor.name = "Firewall_Temp_1 (ºC)";
     Firewall_Temperature2_Sensor.name = "Firewall_Temp_2 (ºC)";
     Wing_Extensometer_1_Sensor.name = "Wing_Ext_1 (mm)";

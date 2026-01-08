@@ -97,10 +97,10 @@ extern Sensor MS2_Bank1_AFR_Tgt;
 extern Sensor MS2_Bank2_AFR_Tgt;
 extern Sensor MS2_Lambda;
 extern Sensor MS2_Cold_Adv;
-extern Sensor MS2_knockIn;
-extern Sensor MS2_egoCorr1;
-extern Sensor MS2_egoCorr2;
-extern Sensor MS2_aircor;
+//extern Sensor MS2_knockIn;
+//extern Sensor MS2_egoCorr1;
+//extern Sensor MS2_egoCorr2;
+//extern Sensor MS2_aircor;
 extern Sensor Firewall_Temperature1_Sensor;
 extern Sensor Firewall_Temperature2_Sensor;
 extern Sensor Wing_Extensometer_1_Sensor;
@@ -329,6 +329,7 @@ public:
     return retValue;
   }
 };
+
 
 extern SW_Settings SteeringWheel;
 

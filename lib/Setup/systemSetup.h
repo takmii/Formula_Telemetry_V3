@@ -4,7 +4,7 @@
 //#include <SdFat.h>
 
 
-#include <Formula_SIM7600G.h>
+//#include <Formula_SIM7600G.h>
 #include <Wire.h>
 #include <Adafruit_MLX90614.h>
 #include <RTClib.h>
@@ -20,9 +20,9 @@
 #include "esp_bt.h"
 #include "esp_bt_main.h"
 #include <WiFi.h>
-#include <WiFiClientSecure.h>
+//#include <WiFiClientSecure.h>
 #include <timeSetup.h>
-#include <PubSubClient.h>
+//#include <PubSubClient.h>
 //#include <CAN.h>
 #include "driver/twai.h"
 #include <CAN_Messages.h>
@@ -62,7 +62,7 @@
 
 #define BUFFER_LENGTH TIMEBASE/SD_TASK_TIMER
 #define BUFFER_NUMBER 2
-#define MAX_SENSORS 90
+#define MAX_SENSORS 85
 #define BUFFER_SIZE 7
 
 #define RPM_PIN 32
@@ -137,10 +137,6 @@ const uint8_t MPU_addr = 0x68;
 
 
 Adafruit_MLX90614 mlx = Adafruit_MLX90614();
-
-WiFiClientSecure espClient;
-PubSubClient client(espClient);
-
 
 const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = (-3) * 3600;         

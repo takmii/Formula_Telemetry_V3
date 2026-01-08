@@ -23,8 +23,8 @@ void setPayload(unsigned char byte,unsigned short data);
 void setPayload32(unsigned char byte,unsigned int data);
 void clearPayload();
 
-extern char mqtt_payload[PAYLOAD_SIZE];
-extern char ATpayload[PAYLOAD_SIZE + 32];
+//extern char mqtt_payload[PAYLOAD_SIZE];
+//extern char ATpayload[PAYLOAD_SIZE + 32];
 extern unsigned short payload_index;
 
 String extrairCGACT(String resposta);
