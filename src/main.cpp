@@ -111,7 +111,7 @@ void setup()
 
     I2C_MPU6050.beginTransmission(MPU_addr);
     I2C_MPU6050.write(0x1C);
-    I2C_MPU6050.write(0x00);
+    I2C_MPU6050.write(0x10);
     I2C_MPU6050.endTransmission();
   }
   if (!rtc.begin())
@@ -1225,9 +1225,12 @@ void AccelGyro_task1(void *parameter){
   const TickType_t xFrequency = pdMS_TO_TICKS(ACC_TIMER);
 
   int16_t AcX, AcY, AcZ;
-  int16_t AcXf = -819;
-  int16_t AcYf = 164;
-  int16_t AcZf = 819;
+  //int16_t AcXf = -819;
+  //int16_t AcYf = 164;
+  //int16_t AcZf = 819;
+  int16_t AcXf = -175;
+  int16_t AcYf = 25;
+  int16_t AcZf = 225;
   int16_t AcMod;
   int16_t GyX, GyY, GyZ;
   uint8_t AccData[8];
@@ -1263,7 +1266,7 @@ void AccelGyro_task1(void *parameter){
               uint8_t pwr_mgmt_1 = I2C_MPU6050.read();
               
               if (pwr_mgmt_1 & 0x40) {
-                Serial.println("⚠️ MPU6050 em SLEEP! Reativando...");
+                //Serial.println("MPU6050 em SLEEP! Reativando...");
                 I2C_MPU6050.beginTransmission(MPU_addr);
                 I2C_MPU6050.write(0x6B);
                 I2C_MPU6050.write(0x01);
@@ -1300,7 +1303,7 @@ void AccelGyro_task1(void *parameter){
           } else {
             accgyro_status = 1;
             errorCount++;
-            Serial.printf("❌ Erro: esperava 14 bytes, recebeu %d\n", bytesReceived);
+            //Serial.printf("Erro: esperava 14 bytes, recebeu %d\n", bytesReceived);
             
             // Limpa buffer se houver dados pendentes
             while (I2C_MPU6050.available()) {
@@ -1310,21 +1313,21 @@ void AccelGyro_task1(void *parameter){
         } else {
           accgyro_status = 1;
           errorCount++;
-          Serial.printf("❌ Erro I2C: %d\n", error);
+          //Serial.printf(" Erro I2C: %d\n", error);
         }
         
         xSemaphoreGive(i2cMutex);
         
         // ⚠️ REINICIA MPU SE MUITOS ERROS
         if (errorCount > 10) {
-          Serial.println("🔄 Muitos erros! Reiniciando MPU6050...");
+          //Serial.println(" Muitos erros! Reiniciando MPU6050...");
           if (xSemaphoreTake(i2cMutex, portMAX_DELAY) == pdTRUE) {
             // Reset completo
             I2C_MPU6050.beginTransmission(MPU_addr);
             I2C_MPU6050.write(0x6B);
             I2C_MPU6050.write(0x80); // Reset bit
             I2C_MPU6050.endTransmission();
-            delay(100);
+            vTaskDelay(pdMS_TO_TICKS(100));
             
             // Reconfigura
             I2C_MPU6050.beginTransmission(MPU_addr);
@@ -1339,7 +1342,7 @@ void AccelGyro_task1(void *parameter){
           continue;
         }
         
-        // ⚠️ SÓ PROCESSA SE DADOS VÁLIDOS
+        //  SÓ PROCESSA SE DADOS VÁLIDOS
         if (dataValid) {
           AcX += AcXf;
           AcY += AcYf;
@@ -1353,20 +1356,20 @@ void AccelGyro_task1(void *parameter){
           RatePitch = (float)GyY / 65.5;
           RateYaw = (float)GyZ / 65.5;
 
-          aX = (float)AcX / 16384;
-          aY = (float)AcY / 16384;
-          aZ = (float)AcZ / 16384;
+          aX = (float)AcX / 4096;
+          aY = (float)AcY / 4096;
+          aZ = (float)AcZ / 4096;
 
           AcMod = (int16_t)sqrt((double)((int32_t)AcX * AcX + (int32_t)AcY * AcY + (int32_t)AcZ * AcZ));
-          aMod = (float)AcMod / 16384;
+          aMod = (float)AcMod / 4096;
 
-          Serial.print("AcX: "); Serial.print(aX);
-          Serial.print(" AcY: "); Serial.print(aY);
-          Serial.print(" AcZ: "); Serial.print(aZ);
-          Serial.print(" AcMod: "); Serial.print(aMod);
-          Serial.print(" GyX: "); Serial.print(RateRoll);
-          Serial.print(" GyY: "); Serial.print(RatePitch);
-          Serial.print(" GyZ: "); Serial.println(RateYaw);
+          //Serial.print("AcX: "); Serial.print(aX);
+          //Serial.print(" AcY: "); Serial.print(aY);
+          //Serial.print(" AcZ: "); Serial.print(aZ);
+          //Serial.print(" AcMod: "); Serial.print(aMod);
+          //Serial.print(" GyX: "); Serial.print(RateRoll);
+          //Serial.print(" GyY: "); Serial.print(RatePitch);
+          //Serial.print(" GyZ: "); Serial.println(RateYaw);
 
           sensorUpdate(aX, Accel_X.index);
           sensorUpdate(aY, Accel_Y.index);
