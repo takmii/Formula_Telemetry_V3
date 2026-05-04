@@ -96,31 +96,31 @@ float tempOilSensor(__u16 value,double a,double b,double c){
   return roundf(((prop*360) - middle) * 10.0f) / 10.0f;
 }*/
 
-String Gear_Pos(__u8 value){
+unsigned char Gear_Pos(__u8 value){
     switch(value){
         case 7: 
-        return "N";
+        return 0;
         break;
         case 1: 
-        return "1";
+        return 1;
         break;
         case 2: 
-        return "2";
+        return 2;
         break;
         case 3: 
-        return "3";
+        return 3;
         break;
         case 4: 
-        return "4";
+        return 4;
         break;
         case 5: 
-        return "5";
+        return 5;
         break;
         case 6: 
-        return "6";
+        return 6;
         break;
     }
-    return "ERROR";
+    return 10;
 }
 
 unsigned short degreesofPrecision(uint16_t data, float max_Value, float decimal){

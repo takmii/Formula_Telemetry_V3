@@ -4,7 +4,7 @@
 //#include <SdFat.h>
 
 
-//#include <Formula_SIM7600G.h>
+#include <Formula_SIM7600G.h>
 #include <Wire.h>
 #include <Adafruit_MLX90614.h>
 #include <RTClib.h>
@@ -142,15 +142,25 @@ const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = (-3) * 3600;         
 const int   daylightOffset_sec = 0;
 
-const char* mqtt_login = "Gateway";
-const char* mqtt_pwd = "#0FormulaUTFPR";
-
 const float FtC = 0.55;
 
+void sensorUpdate(float value, uint8_t index);
 
-template <typename T>
-void sensorUpdate(T value, __u8 index);
+void sensorUpdate(int32_t value, uint8_t index);
 
+void sensorUpdate(uint32_t value, uint8_t index);
+
+typedef union {
+  float f;       // Para sensores como MPU6050 (4 bytes)
+  int32_t i;     // Para valores negativos inteiros (4 bytes)
+  uint32_t u;    // Para tempo ou contadores (4 bytes)
+} SensorValue;
+
+enum SensorType {
+  TYPE_FLOAT,
+  TYPE_INT,
+  TYPE_UINT
+};
 
 
 #endif

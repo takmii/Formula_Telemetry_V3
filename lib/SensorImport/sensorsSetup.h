@@ -116,7 +116,7 @@ __u8 indexSetup();
 void setSensorName();
 
 float vRef_Proportion(uint16_t data);
-String Gear_Pos(__u8 value);
+unsigned char Gear_Pos(__u8 value);
 float LinearSensor(__u16 value, float a, float b);
 float TempSensor(__u16 value, __u32 R1, __u32 R2, float c1, float c2, float c3);
 float vBatSensor(__u16 value);
@@ -280,54 +280,69 @@ public:
     oldconv[0] = value;
   }
   
-  String steeringWheelValue(unsigned short r_value)
-  {
+  float steeringWheelValue(unsigned short r_value)
+{
     float prop = vRef_Proportion(r_value);
-    double value = (prop*360);
+    double value = (prop * 360.0);
 
-    static bool hypothetical = 1;
+    // Variáveis estáticas mantêm o estado do filtro entre chamadas
+    static bool hypothetical = true; // Inicia true (1)
     static unsigned char current_region = 0;
     static unsigned char old_region;
     static double old_value;
     static double old_conv;
-    String retValue = "";
-    double conv_value = fmodf(((value - center) + 540), 360) - 180;
+    
+    // Variável para o retorno numérico
+    float finalResult = 0.0f; 
+
+    // Cálculo do valor convertido (centralizado)
+    double conv_value = fmodf(((value - center) + 540.0), 360.0) - 180.0;
+
 
     if (hypothetical)
     {
-      if (conv_value > dValueEsq && conv_value < dValueDir)
-      {
-        hypothetical = 0;
-      }
+        if (conv_value > dValueEsq && conv_value < dValueDir)
+        {
+            hypothetical = false; // Sai do estado hipotético
+        }
     }
     else
     {
-      old_region = getOldRegion();
-      old_value = getOldValues();
-      old_conv = getOldConvs();
-      if (conv_value > dValueEsq && conv_value < dValueDir)
-      {
-        current_region = getRegion(conv_value);
-      }
-      else{
-        conv_value = fmodf(((value - old_value) + 540), 360) - 180 + old_conv;
-        current_region = getRegion(conv_value);
-        if ((current_region ==1 && old_region==3) || (current_region ==3 && old_region==1))
+        old_region = getOldRegion();
+        old_value = getOldValues();
+        old_conv = getOldConvs();
+
+        if (conv_value > dValueEsq && conv_value < dValueDir)
         {
-          hypothetical = 1;
+            current_region = getRegion(conv_value);
         }
-      }
-    } 
-    retValue = String(conv_value / 2);
+        else
+        {
+
+            conv_value = fmodf(((value - old_value) + 540.0), 360.0) - 180.0 + old_conv;
+            current_region = getRegion(conv_value);
+
+            if ((current_region == 1 && old_region == 3) || (current_region == 3 && old_region == 1))
+            {
+                hypothetical = true;
+            }
+        }
+    }
+   
     if (hypothetical)
     {
-      retValue = retValue + "?";
+        finalResult = 0.0f; // Retorna 0 se indefinido
+    }
+    else
+    {
+        finalResult = (float)(conv_value / 2.0);
     }
     setOldRegion(current_region);
     setOldValues(value);
     setOldConv(conv_value);
-    return retValue;
-  }
+
+    return finalResult;
+}
 };
 
 

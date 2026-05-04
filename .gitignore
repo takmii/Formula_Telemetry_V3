@@ -5,3 +5,4 @@
 .vscode/ipch
 src/home_settings.cpp
 src/home_settings.h
+lib/SIM7600G/MQTT_credentials.h

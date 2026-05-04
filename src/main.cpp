@@ -6,9 +6,11 @@ String printValues();
 
 SPIClass SD_SPI;
 #define SD_CONFIG SdSpiConfig(SD_CS, DEDICATED_SPI, 4000000, &SD_SPI);
-char sensorValues[BUFFER_NUMBER][BUFFER_LENGTH][MAX_SENSORS][BUFFER_SIZE];
-uint32_t timeValues[BUFFER_NUMBER][BUFFER_LENGTH];
 
+SensorType sensorTypes[MAX_SENSORS];
+SensorValue sensorValues[BUFFER_NUMBER][BUFFER_LENGTH][MAX_SENSORS];
+
+uint32_t timeValues[BUFFER_NUMBER][BUFFER_LENGTH];
 
 SemaphoreHandle_t sdMutex;
 SemaphoreHandle_t i2cMutex;
@@ -35,9 +37,8 @@ TickType_t now;
 volatile bool flag_sd = 0;
 bool sd_started = 0;
 
-
-uint8_t sd_status=0;
-uint8_t accgyro_status=0;
+uint8_t sd_status = 0;
+uint8_t accgyro_status = 0;
 
 uint32_t verify_Filesize_timer;
 
@@ -58,7 +59,7 @@ bool rtc_setup = 0;
 
 bool time_set_ack = 0;
 
-bool acc_start=0;
+bool acc_start = 0;
 
 QueueHandle_t can_rx_queue;
 
@@ -75,7 +76,7 @@ void setup()
   string_flag = 0;
   Wire.begin(25, 26);
   Wire.setClock(400000);
-  I2C_MPU6050.begin(4,5);
+  I2C_MPU6050.begin(4, 5);
   I2C_MPU6050.setClock(100000);
   I2C_MPU6050.setTimeout(1000);
 
@@ -83,86 +84,49 @@ void setup()
   while (!Serial)
   {
   }
-  /*simCOM.setRxBufferSize(2048);
+  simCOM.setRxBufferSize(2048);
   simCOM.begin(115200, SERIAL_8N1, RX_PIN, TX_PIN);
   while(!simCOM)
   {
-  }*/
-
-  I2C_MPU6050.beginTransmission(0x68);
-  if(I2C_MPU6050.endTransmission()==0){
-    acc_start=1;
-    Serial.println("MPU6050 conectado");
-
-    I2C_MPU6050.beginTransmission(MPU_addr);
-    I2C_MPU6050.write(0x6B); // PWR_MGMT_1
-    I2C_MPU6050.write(0x01); 
-    I2C_MPU6050.endTransmission();
-
-    I2C_MPU6050.beginTransmission(MPU_addr);
-    I2C_MPU6050.write(0x1A);
-    I2C_MPU6050.write(0x05);
-    I2C_MPU6050.endTransmission();
-
-    I2C_MPU6050.beginTransmission(MPU_addr);
-    I2C_MPU6050.write(0x1B);
-    I2C_MPU6050.write(0x08);
-    I2C_MPU6050.endTransmission();
-
-    I2C_MPU6050.beginTransmission(MPU_addr);
-    I2C_MPU6050.write(0x1C);
-    I2C_MPU6050.write(0x10);
-    I2C_MPU6050.endTransmission();
   }
-  if (!rtc.begin())
-  {
-    Serial.println("RTC DS3231 não encontrado.");
-  }
-  else
-  {
-    rtc_exists = 1;
-  }
-  /*CAN.setPins(CAN_RX_PIN, CAN_TX_PIN);
-  while (!CAN.begin(500E3))
-  {
-  };*/
-
   init_twai();
 
   disableBluetooth();
 
   uint16_t init_wifi_time = millis();
-  if(rtc_setup){
-  //WiFi.begin(returnSSID(), returnPWD());
-  if (WiFi.status() != WL_CONNECTED)
+  if (rtc_setup)
   {
-    while (WiFi.status() != WL_CONNECTED && millis() - init_wifi_time < 5000)
+    // WiFi.begin(returnSSID(), returnPWD());
+    if (WiFi.status() != WL_CONNECTED)
     {
-      delay(100);
+      while (WiFi.status() != WL_CONNECTED && millis() - init_wifi_time < 5000)
+      {
+        delay(100);
+      }
+      if (WiFi.status() == WL_CONNECTED)
+      {
+        Serial.println("WiFi connected.");
+        if (rtc_setup && rtc_exists)
+        {
+          configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+          time_get = 1;
+          espTime = getTimeBase();
+          setRTC();
+          Serial.print(espTime.day);
+          Serial.print("/");
+          Serial.print(espTime.month);
+          Serial.print("/");
+          Serial.print(espTime.year);
+          Serial.print("  ");
+          Serial.print(espTime.hour);
+          Serial.print(":");
+          Serial.print(espTime.minute);
+          Serial.print(":");
+          Serial.println(espTime.second);
+        }
+      }
     }
-    if (WiFi.status() == WL_CONNECTED) {
-  Serial.println("WiFi connected.");
-  if (rtc_setup && rtc_exists)
-  {
-    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-    time_get = 1;
-    espTime = getTimeBase();
-    setRTC();
-    Serial.print(espTime.day);
-    Serial.print("/");
-    Serial.print(espTime.month);
-    Serial.print("/");
-    Serial.print(espTime.year);
-    Serial.print("  ");
-    Serial.print(espTime.hour);
-    Serial.print(":");
-    Serial.print(espTime.minute);
-    Serial.print(":");
-    Serial.println(espTime.second);
   }
-}
-  }
-}
 
   if (WiFi.status() != WL_CONNECTED)
   {
@@ -221,16 +185,11 @@ void setup()
     }
 
     writeHeader(file_.c_str(), sensorLength);
-    verify_Filesize_timer=millis();
-    
+    verify_Filesize_timer = millis();
   }
-  pinMode(GPIO_LEDRPM,OUTPUT);
+  pinMode(GPIO_LEDRPM, OUTPUT);
 
-
-  rpm_time_zero=millis();
-
-  //pinMode(RPM_PIN,INPUT_PULLUP);
-  //attachInterrupt(digitalPinToInterrupt(RPM_PIN), handleEdge, FALLING);
+  rpm_time_zero = millis();
 
   xTaskCreatePinnedToCore(
       sdTask,    // Function to implement the task
@@ -252,35 +211,24 @@ void setup()
       1           // Core where the task should run (0 or 1)
   );
 
-   /* xTaskCreatePinnedToCore(
-      sdFile,    // Function to implement the task
-      "SD File", // Name of the task
-      2048,       // Stack size in words
-      NULL,       // Task input parameter
-      1,          // Priority of the task
-      NULL,       // Task handle
-      1           // Core where the task should run (0 or 1)
-  );*/
-
-
-    xTaskCreatePinnedToCore(
-      Calibracao,    // Function to implement the task
+  xTaskCreatePinnedToCore(
+      Calibracao,   // Function to implement the task
       "Calibracao", // Name of the task
-      1024,       // Stack size in words
-      NULL,       // Task input parameter
-      1,          // Priority of the task
-      NULL,       // Task handle
-      1           // Core where the task should run (0 or 1)
+      1024,         // Stack size in words
+      NULL,         // Task input parameter
+      1,            // Priority of the task
+      NULL,         // Task handle
+      1             // Core where the task should run (0 or 1)
   );
 
-      xTaskCreatePinnedToCore(
-      MessagesFN,    // Function to implement the task
+  xTaskCreatePinnedToCore(
+      MessagesFN,   // Function to implement the task
       "Message FN", // Name of the task
-      2048,       // Stack size in words
-      NULL,       // Task input parameter
-      1,          // Priority of the task
-      NULL,       // Task handle
-      1           // Core where the task should run (0 or 1)
+      2048,         // Stack size in words
+      NULL,         // Task input parameter
+      1,            // Priority of the task
+      NULL,         // Task handle
+      1             // Core where the task should run (0 or 1)
   );
 
   xTaskCreatePinnedToCore(
@@ -303,37 +251,27 @@ void setup()
       0                // Core (0 or 1)
   );
 
-  /*xTaskCreatePinnedToCore(
-      RPM_task,    // Function to implement the task
-      "RPM Task", // Name of the task
-      2048,       // Stack size in words
-      NULL,       // Task input parameter
-      5,          // Priority of the task
-      NULL,       // Task handle
-      0           // Core where the task should run (0 or 1)
-  );*/
+  xTaskCreatePinnedToCore(
+      AccelGyro_task1,   // Function to implement the task
+      "Accel Gyro Task", // Name of the task
+      2048,              // Stack size in words
+      NULL,              // Task input parameter
+      2,                 // Priority of the task
+      NULL,              // Task handle
+      0                  // Core where the task should run (0 or 1)
+  );
 
   xTaskCreatePinnedToCore(
-      AccelGyro_task1,    // Function to implement the task
-      "Accel Gyro Task", // Name of the task
-      2048,       // Stack size in words
-      NULL,       // Task input parameter
-      2,          // Priority of the task
-      NULL,       // Task handle
-      0           // Core where the task should run (0 or 1)
-  );
-
-   xTaskCreatePinnedToCore(
       TempTask,    // Function to implement the task
       "Temp Task", // Name of the task
-      2048,       // Stack size in words
-      NULL,       // Task input parameter
-      2,          // Priority of the task
-      NULL,       // Task handle
-      0           // Core where the task should run (0 or 1)
+      2048,        // Stack size in words
+      NULL,        // Task input parameter
+      2,           // Priority of the task
+      NULL,        // Task handle
+      0            // Core where the task should run (0 or 1)
   );
 
-  /*xTaskCreatePinnedToCore(
+  xTaskCreatePinnedToCore(
       SIM_Task,    // Function to implement the task
       "SIM Task", // Name of the task
       8192,       // Stack size in words
@@ -341,7 +279,7 @@ void setup()
       1,          // Priority of the task
       NULL,       // Task handle
       1           // Core where the task should run (0 or 1)
-  );*/
+  );
 
   /*xTaskCreatePinnedToCore(
       MQTT_Time_Task,    // Function to implement the task
@@ -358,7 +296,7 @@ void loop()
 {
 }
 
-void sensorUpdate(float value, uint8_t index)
+/*void sensorUpdate(float value, uint8_t index)
 {
   snprintf(sensorValues[buffer_write][row_write][index], 7, "%.2f", value);
 }
@@ -406,6 +344,21 @@ void sensorUpdate(int32_t value, uint8_t index)
 void sensorUpdate(int64_t value, uint8_t index)
 {
   snprintf(sensorValues[buffer_write][row_write][index], 7, "%lld", (long long)value);
+}*/
+
+void sensorUpdate(float value, uint8_t index)
+{
+  sensorValues[buffer_write][row_write][index].f = value;
+}
+
+void sensorUpdate(int32_t value, uint8_t index)
+{
+  sensorValues[buffer_write][row_write][index].i = value;
+}
+
+void sensorUpdate(uint32_t value, uint8_t index)
+{
+  sensorValues[buffer_write][row_write][index].u = value;
 }
 
 void writeHeader(const char *filename, __u8 size)
@@ -478,13 +431,13 @@ void sdTask(void *parameter)
       {
         vTaskDelay(pdMS_TO_TICKS(1));
         buffer_read = !buffer_write;
-        if (xSemaphoreTake(sdMutex, portMAX_DELAY)) {
-        writeSDCard();
-        xSemaphoreGive(sdMutex);
+        if (xSemaphoreTake(sdMutex, portMAX_DELAY))
+        {
+          writeSDCard();
+          xSemaphoreGive(sdMutex);
         }
       }
     }
-
 
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
@@ -498,10 +451,11 @@ void sdFlush(void *parameter)
   {
     if (sd_started)
     {
-      if (xSemaphoreTake(sdMutex, portMAX_DELAY)) {
-      oFile.flush();
-      xSemaphoreGive(sdMutex);
-        }
+      if (xSemaphoreTake(sdMutex, portMAX_DELAY))
+      {
+        oFile.flush();
+        xSemaphoreGive(sdMutex);
+      }
     }
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
@@ -536,21 +490,23 @@ void sdVerify(void *parameter)
   const TickType_t xFrequency = pdMS_TO_TICKS(SD_VERIFY_TIMER);
   for (;;)
   {
-    if (sd_started){
-    if (!sd_hold)
+    if (sd_started)
     {
-      if (xSemaphoreTake(sdMutex, portMAX_DELAY)) {
-      if (!oFile)
+      if (!sd_hold)
       {
-        sd_status = 1;
-        oFile = SD.open(file_.c_str(), FILE_APPEND);
-      }
-      xSemaphoreGive(sdMutex);
+        if (xSemaphoreTake(sdMutex, portMAX_DELAY))
+        {
+          if (!oFile)
+          {
+            sd_status = 1;
+            oFile = SD.open(file_.c_str(), FILE_APPEND);
+          }
+          xSemaphoreGive(sdMutex);
         }
+      }
     }
+    vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
-  vTaskDelayUntil(&xLastWakeTime, xFrequency);
-}
 }
 
 void CAN_receiveTask(void *parameter)
@@ -633,18 +589,18 @@ void getRTC()
   espTime.second = now.second();
 }
 
-void sendCANMessage(uint8_t id, uint8_t *data, uint8_t dlc){
+void sendCANMessage(uint8_t id, uint8_t *data, uint8_t dlc)
+{
   twai_message_t message;
   message.identifier = id;
   message.flags = 0;
   message.data_length_code = dlc;
-    for (int i = 0; i < dlc; i++) {
-        message.data[i] = data[i];
-    }
-    esp_err_t result = twai_transmit(&message, pdMS_TO_TICKS(10));
+  for (int i = 0; i < dlc; i++)
+  {
+    message.data[i] = data[i];
+  }
+  esp_err_t result = twai_transmit(&message, pdMS_TO_TICKS(10));
 }
-
-
 
 void CAN_setSensor(const __u8 *canData, __u8 canPacketSize, __u32 canId)
 {
@@ -694,7 +650,8 @@ void CAN_setSensor(const __u8 *canData, __u8 canPacketSize, __u32 canId)
     break;
 
   case TIMESET_ACK_ID:
-    if (data[0]==1){
+    if (data[0] == 1)
+    {
       time_set_ack = 1;
     }
     break;
@@ -711,38 +668,38 @@ void CAN_setSensor(const __u8 *canData, __u8 canPacketSize, __u32 canId)
     fn_Group_0(data);
     break;
 
-    case BASE_ID + GROUP1_ID:
+  case BASE_ID + GROUP1_ID:
     fn_Group_1(data);
     break;
 
-    case BASE_ID + GROUP2_ID:
+  case BASE_ID + GROUP2_ID:
     fn_Group_2(data);
     break;
 
-    case BASE_ID + GROUP3_ID:
+  case BASE_ID + GROUP3_ID:
     fn_Group_3(data);
     break;
 
-        case BASE_ID + GROUP7_ID:
+  case BASE_ID + GROUP7_ID:
     fn_Group_7(data);
     break;
 
-        case BASE_ID + GROUP8_ID:
+  case BASE_ID + GROUP8_ID:
     fn_Group_8(data);
     break;
 
-        case BASE_ID + GROUP9_ID:
+  case BASE_ID + GROUP9_ID:
     fn_Group_9(data);
     break;
 
-        case BASE_ID + GROUP15_ID:
+  case BASE_ID + GROUP15_ID:
     fn_Group_15(data);
     break;
 
   default:
-    //Serial.print("0x");
-    //Serial.println(canId,HEX);
-    //Serial.println(" NR");
+    // Serial.print("0x");
+    // Serial.println(canId,HEX);
+    // Serial.println(" NR");
     break;
   }
 }
@@ -753,6 +710,16 @@ void fn_Messages(__u8 data[MESSAGES_DLC])
 
 void fn_Data_01(__u8 data[DATA_01_DLC])
 {
+  static bool setupSensors = false;
+  if (!setupSensors)
+  {
+    sensorTypes[Voltage_Sensor.index] = TYPE_FLOAT;
+    sensorTypes[Internal_Temperature_Sensor.index] = TYPE_FLOAT;
+    sensorTypes[V_Ref_Sensor.index] = TYPE_FLOAT;
+    sensorTypes[Gear_Pos_Sens.index] = TYPE_UINT;
+    setupSensors = true;
+  }
+
   __u16 r_vBat = ((data[1] & 0x0F) << 8) + data[0];
   __u16 r_intTemp = (data[2] << 4) + ((data[1] >> 4) & 0x0F);
   __u16 r_vRef = ((data[4] & 0x0F) << 8) + data[3];
@@ -761,7 +728,7 @@ void fn_Data_01(__u8 data[DATA_01_DLC])
   float vBat = vBatSensor(r_vBat);
   float vRef = vRefSensor(r_vRef);
   float intTemp = internalTemp(r_intTemp);
-  String Gear = Gear_Pos(r_Gear);
+  __u8 Gear = Gear_Pos(r_Gear);
 
   sensorUpdate(vBat, Voltage_Sensor.index);
   sensorUpdate(intTemp, Internal_Temperature_Sensor.index);
@@ -771,8 +738,18 @@ void fn_Data_01(__u8 data[DATA_01_DLC])
 
 void fn_Data_02(__u8 data[DATA_02_DLC])
 {
+  static bool setupSensors = false;
+  if (!setupSensors)
+  {
+    sensorTypes[Susp_Pos_FR_Sensor.index] = TYPE_FLOAT;
+    sensorTypes[Susp_Pos_FL_Sensor.index] = TYPE_FLOAT;
+    sensorTypes[Susp_Pos_RR_Sensor.index] = TYPE_FLOAT;
+    sensorTypes[Susp_Pos_RL_Sensor.index] = TYPE_FLOAT;
+    sensorTypes[SteerWheel_Pos_Sensor.index] = TYPE_FLOAT;
+    setupSensors = true;
+  }
 
-    const static float Susp_FR_Center = 0;
+  const static float Susp_FR_Center = 0;
   const static float Susp_FL_Center = 74.9;
   const static float Susp_RR_Center = 82.1;
   const static float Susp_RL_Center = 23.1;
@@ -783,11 +760,11 @@ void fn_Data_02(__u8 data[DATA_02_DLC])
   __u16 r_Susp_RL = (data[5] << 4) + ((data[4] >> 4) & 0x0F);
   __u16 r_WheelAngle = ((data[7] & 0x0F) << 8) + data[6];
 
-  float Susp_FR = suspSensor(r_Susp_FR,0,Susp_FR_Center);
-  float Susp_FL = suspSensor(r_Susp_FL,1,Susp_FL_Center);
-  float Susp_RR = suspSensor(r_Susp_RR,0,Susp_RR_Center);
-  float Susp_RL = suspSensor(r_Susp_RL,1,Susp_RL_Center);
-  String WheelAngle = SteeringWheel.steeringWheelValue(r_WheelAngle);
+  float Susp_FR = suspSensor(r_Susp_FR, 0, Susp_FR_Center);
+  float Susp_FL = suspSensor(r_Susp_FL, 1, Susp_FL_Center);
+  float Susp_RR = suspSensor(r_Susp_RR, 0, Susp_RR_Center);
+  float Susp_RL = suspSensor(r_Susp_RL, 1, Susp_RL_Center);
+  float WheelAngle = SteeringWheel.steeringWheelValue(r_WheelAngle);
 
   sensorUpdate(Susp_FR, Susp_Pos_FR_Sensor.index);
   sensorUpdate(Susp_FL, Susp_Pos_FL_Sensor.index);
@@ -798,6 +775,15 @@ void fn_Data_02(__u8 data[DATA_02_DLC])
 
 void fn_Data_03(__u8 data[DATA_03_DLC])
 {
+  static bool setupSensors = false;
+  if (!setupSensors)
+  {
+    sensorTypes[Wheel_Spd_FR_Sensor.index] = TYPE_FLOAT;
+    sensorTypes[Wheel_Spd_FL_Sensor.index] = TYPE_FLOAT;
+    sensorTypes[Wheel_Spd_RR_Sensor.index] = TYPE_FLOAT;
+    sensorTypes[Wheel_Spd_RL_Sensor.index] = TYPE_FLOAT;
+    setupSensors = true;
+  }
 
   __u16 r_Hall_FR = ((data[1] & 0x0F) << 8) + data[0];
   __u16 r_Hall_FL = (data[2] << 4) + ((data[1] >> 4) & 0x0F);
@@ -817,14 +803,21 @@ void fn_Data_03(__u8 data[DATA_03_DLC])
 
 void fn_Data_04(__u8 data[DATA_04_DLC])
 {
+  static bool setupSensors = false;
+  if (!setupSensors)
+  {
+    sensorTypes[Oil_Pressure_Sensor.index] = TYPE_FLOAT;
+    sensorTypes[Oil_Temperature_Sensor.index] = TYPE_FLOAT;
+    setupSensors = true;
+  }
   //__u16 r_Oil_Pressure = ((data[1] & 0x0F) << 8) + data[0];
   //__u16 r_Oil_Temp = (data[2] << 4) + ((data[1] >> 4) & 0x0F);
 
-  //float Oil_Pressure = (r_Oil_Pressure);
-  //float Oil_Temp = (r_Oil_Temp);
-  
-  //sensorUpdate(Oil_Pressure, Oil_Pressure_Sensor.index);
-  //sensorUpdate(Oil_Temp, Oil_Temperature_Sensor.index);
+  // float Oil_Pressure = (r_Oil_Pressure);
+  // float Oil_Temp = (r_Oil_Temp);
+
+  // sensorUpdate(Oil_Pressure, Oil_Pressure_Sensor.index);
+  // sensorUpdate(Oil_Temp, Oil_Temperature_Sensor.index);
 }
 
 void fn_Data_05(__u8 data[DATA_05_DLC])
@@ -833,10 +826,20 @@ void fn_Data_05(__u8 data[DATA_05_DLC])
 
 void fn_Data_06(__u8 data[DATA_06_DLC])
 {
+  static bool setupSensors = false;
+  if (!setupSensors)
+  {
+    sensorTypes[F_Brakeline_Pressure.index] = TYPE_FLOAT;
+    sensorTypes[R_Brakeline_Pressure.index] = TYPE_FLOAT;
+    setupSensors = true;
+  }
+
   __u16 r_F_BrakelinePress = ((data[4] & 0x0F) << 8) + data[3];
   __u16 r_R_BrakelinePress = (data[5] << 4) + ((data[4] >> 4) & 0x0F);
+
   float F_BrakelinePress = (r_F_BrakelinePress);
   float R_BrakelinePress = (r_R_BrakelinePress);
+
   sensorUpdate(F_BrakelinePress, F_Brakeline_Pressure.index);
   sensorUpdate(R_BrakelinePress, R_Brakeline_Pressure.index);
 }
@@ -855,27 +858,50 @@ void fn_Data_09(__u8 data[DATA_09_DLC])
 
 void fn_Data_10(__u8 data[DATA_10_DLC])
 {
+  static bool setupSensors = false;
+  if (!setupSensors)
+  {
+    sensorTypes[MAP1_Sensor.index] = TYPE_FLOAT;
+    sensorTypes[MAP2_Sensor.index] = TYPE_FLOAT;
+    sensorTypes[MAF_Sensor.index] = TYPE_FLOAT;
+    sensorTypes[Oil_Temperature_Sensor.index] = TYPE_FLOAT;
+    setupSensors = true;
+  }
+
   static const double a = 0.00130654;
   static const double b = 0.000259714;
   static const double c = -1.08959E-08;
 
-  __u16 r_MAP1=((data[1] & 0x0F) << 8) + data[0];
-  __u16 r_MAP2=(data[2] << 4) + ((data[1] >> 4) & 0x0F);
-  __u16 r_MAF=((data[4] & 0x0F) << 8) + data[3];
-  __u16 r_OilTemp=(data[5] << 4) + ((data[4] >> 4) & 0x0F);
+  __u16 r_MAP1 = ((data[1] & 0x0F) << 8) + data[0];
+  __u16 r_MAP2 = (data[2] << 4) + ((data[1] >> 4) & 0x0F);
+  __u16 r_MAF = ((data[4] & 0x0F) << 8) + data[3];
+  __u16 r_OilTemp = (data[5] << 4) + ((data[4] >> 4) & 0x0F);
 
   float MAP1 = mapSensor(r_MAP1);
   float MAP2 = mapSensor(r_MAP2);
   float MAF = mafSensor(r_MAF);
-  float OilTemp = tempOilSensor(r_OilTemp,a,b,c);
+  float OilTemp = tempOilSensor(r_OilTemp, a, b, c);
 
-  sensorUpdate(MAP1,MAP1_Sensor.index);
-  sensorUpdate(MAP2,MAP2_Sensor.index);
-  sensorUpdate(MAF,MAF_Sensor.index);
-  sensorUpdate(OilTemp,Oil_Temperature_Sensor.index);
+  sensorUpdate(MAP1, MAP1_Sensor.index);
+  sensorUpdate(MAP2, MAP2_Sensor.index);
+  sensorUpdate(MAF, MAF_Sensor.index);
+  sensorUpdate(OilTemp, Oil_Temperature_Sensor.index);
 }
 
-void fn_Temp(__u8 data[TEMP_DLC]){
+void fn_Temp(__u8 data[TEMP_DLC])
+{
+  static bool setupSensors = false;
+  if (!setupSensors)
+  {
+    sensorTypes[Disk_Temp_FR_Sensor.index] = TYPE_FLOAT;
+    sensorTypes[Disk_Temp_FL_Sensor.index] = TYPE_FLOAT;
+    sensorTypes[Disk_Temp_RR_Sensor.index] = TYPE_FLOAT;
+    sensorTypes[Disk_Temp_RL_Sensor.index] = TYPE_FLOAT;
+    sensorTypes[Firewall_Temperature1_Sensor.index] = TYPE_FLOAT;
+    sensorTypes[Firewall_Temperature2_Sensor.index] = TYPE_FLOAT;
+    setupSensors = true;
+  }
+
   __u16 r_DT_FR = data[0] | ((data[1] & 0x07) << 8);
   __u16 r_DT_FL = ((data[1] >> 3) & 0x1F) | ((data[2] & 0x3F) << 5);
   __u16 r_DT_RR = ((data[2] >> 6) & 0x03) | (data[3] << 2) | ((data[4] & 0x01) << 10);
@@ -883,13 +909,12 @@ void fn_Temp(__u8 data[TEMP_DLC]){
   __u16 r_DT_F1 = ((data[5] >> 4) & 0x0F) | ((data[6] & 0x1F) << 4);
   __u16 r_DT_F2 = ((data[6] >> 5) & 0x07) | (data[7] << 3);
 
-
-  float DT_FR = U16toFloat(r_DT_FR,2);
-  float DT_FL = U16toFloat(r_DT_FL,2);
-  float DT_RR = U16toFloat(r_DT_RR,2);
-  float DT_RL = U16toFloat(r_DT_RL,2);
-  float DT_F1 = U16toFloat(r_DT_F1,2);
-  float DT_F2 = U16toFloat(r_DT_F2,2);
+  float DT_FR = U16toFloat(r_DT_FR, 2);
+  float DT_FL = U16toFloat(r_DT_FL, 2);
+  float DT_RR = U16toFloat(r_DT_RR, 2);
+  float DT_RL = U16toFloat(r_DT_RL, 2);
+  float DT_F1 = U16toFloat(r_DT_F1, 2);
+  float DT_F2 = U16toFloat(r_DT_F2, 2);
 
   sensorUpdate(DT_FR, Disk_Temp_FR_Sensor.index);
   sensorUpdate(DT_FL, Disk_Temp_FL_Sensor.index);
@@ -901,7 +926,8 @@ void fn_Temp(__u8 data[TEMP_DLC]){
 
 void fn_Buffer_Ack(__u8 data[BUFFER_ACK_DLC])
 {
-  if (data[0]=='1'){
+  if (data[0] == '1')
+  {
     timeValues[buffer_write][row_write] = (xTaskGetTickCount() * 1000) / configTICK_RATE_HZ;
     row_write++;
     if (row_write >= BUFFER_LENGTH)
@@ -911,7 +937,6 @@ void fn_Buffer_Ack(__u8 data[BUFFER_ACK_DLC])
       row_write = 0;
     }
   }
-
 }
 
 void fn_Debug(__u8 data[DEBUG_DLC])
@@ -945,28 +970,41 @@ void writeSDCard()
   {
     sd_status = 2;
     String linha;
+    // Reserva espaço na string para evitar realocações dinâmicas (Otimização extra)
+    linha.reserve(MAX_SENSORS * 8);
+
     sd_hold = 1;
     for (int l = 0; l < BUFFER_LENGTH; l++)
     {
-      linha.clear();
+      linha = ""; // Limpa a string
+
       for (int s = 0; s < sensorLength; s++)
       {
-        char *val = sensorValues[buffer_read][l][s];
-        if (val[0] != '\0')
-        {
-          linha += val;
-          val[0] = '\0';
+        // Aqui verificamos qual o tipo do sensor para formatar corretamente
+        // Supondo que você tenha um array sensorTypes[s] configurado no setup
+
+        switch (sensorTypes[s])
+        { // Você precisará criar esse array auxiliar ou colocar o tipo na struct do sensorIndex
+        case TYPE_FLOAT:
+          linha += String(sensorValues[buffer_read][l][s].f, 2); // 2 casas decimais
+          break;
+        case TYPE_INT:
+          linha += String(sensorValues[buffer_read][l][s].i);
+          break;
+        case TYPE_UINT:
+          linha += String(sensorValues[buffer_read][l][s].u);
+          break;
         }
-        // oFile.print(4095);
-        linha += ";"; // separador CSV
+
+        linha += ";";
       }
-      linha += timeValues[buffer_read][l];
+      // Adiciona o timestamp (que já estava separado no seu código original, ou pode ir pra union também)
+      linha += String(timeValues[buffer_read][l]);
       oFile.println(linha);
     }
-    // oFile.flush(); // força gravação no cartão SD
     sd_hold = 0;
   }
-  flag_sd = false; // sinaliza que terminou a escrita
+  flag_sd = false;
 }
 
 void init_twai()
@@ -1016,18 +1054,19 @@ void Calibracao(void *parameter)
   static uint8_t TimeSet_Data[TIMESET_DLC];
   for (;;)
   {
-    //Serial.println(xPortGetFreeHeapSize());
+    // Serial.println(xPortGetFreeHeapSize());
 
-    if (!time_set_ack){
-      TimeSet_Data[0] = espTime.day&0x1F;
-      TimeSet_Data[0]|= ((espTime.month&0x0F)<<5);
-      TimeSet_Data[1] = (espTime.month>>3)&0x01;
-      TimeSet_Data[1]|= (espTime.year&0X7F)<<1;
-      TimeSet_Data[2] = (espTime.year>>7)&0x1F;
-      TimeSet_Data[2] |= (espTime.hour&0x07)<<5;
-      TimeSet_Data[3] = (espTime.hour>>3)&0x03;
-      TimeSet_Data[3]|= (espTime.minute&0x3F)<<2;
-      TimeSet_Data[4] = espTime.second&0x3F;
+    if (!time_set_ack)
+    {
+      TimeSet_Data[0] = espTime.day & 0x1F;
+      TimeSet_Data[0] |= ((espTime.month & 0x0F) << 5);
+      TimeSet_Data[1] = (espTime.month >> 3) & 0x01;
+      TimeSet_Data[1] |= (espTime.year & 0X7F) << 1;
+      TimeSet_Data[2] = (espTime.year >> 7) & 0x1F;
+      TimeSet_Data[2] |= (espTime.hour & 0x07) << 5;
+      TimeSet_Data[3] = (espTime.hour >> 3) & 0x03;
+      TimeSet_Data[3] |= (espTime.minute & 0x3F) << 2;
+      TimeSet_Data[4] = espTime.second & 0x3F;
 
       sendCANMessage(TIMESET_ID, TimeSet_Data, TIMESET_DLC);
     }
@@ -1035,199 +1074,15 @@ void Calibracao(void *parameter)
   }
 }
 
-/*void IRAM_ATTR handleEdge(){
-  uint32_t now = micros();
-  Serial.println(""); 
-  if (n==0){
-    rpm_time_first= now;
-    rpm_ready=1;
-  }
-  if (rpm_ready&&n<10){
-   
-  n++;
-  }
-  if(n==10){
-  rpm_time_last= now;
-  rpm_flag = 1;
-  }
-}*/
-
-/*void RPM_task(void *parameter){
-  TickType_t xLastWakeTime = xTaskGetTickCount();
-  const TickType_t xFrequency = pdMS_TO_TICKS(RPM_TIMER);
-  uint32_t time_rpm;
-  float r_RPM;
-  uint16_t RPM;
-
-  for (;;)
-  {
-    time_rpm=millis();
-    bool update = 0;
-    bool flag;
-    noInterrupts();
-    flag = rpm_flag;
-    interrupts();
-    
-    if (flag){
-    
-    r_RPM = 60000000.0/(rpm_time_last-rpm_time_first);
-    RPM = (uint16_t)r_RPM;
-    n = 0;
-    rpm_flag = 0;
-    update=1;
-    rpm_ready=0;
-    }
-    else if(time_rpm-rpm_time_zero>RPM_ZERO_TIMER){
-      RPM=0;
-      n=0;
-      rpm_ready=0;
-      rpm_time_zero = time_rpm;
-      update=1;
-      rpm_ready=0;
-    }
-    if (update){
-      sensorUpdate(RPM, RPM_Sensor.index);
-      uint8_t RPM_data[2]={0,0};
-      RPM_data[0] = RPM & 0xFF;
-      RPM_data[1] = (RPM >> 8) & 0x3F;
-      sendCANMessage(RPM_ID, RPM_data, RPM_DLC);
-    }
-    if(RPM>10000){
-      digitalWrite(GPIO_LEDRPM, HIGH);
-    }
-    else{
-      digitalWrite(GPIO_LEDRPM, LOW);
-    }
-    vTaskDelayUntil(&xLastWakeTime, xFrequency);
-}
-
-}*/
-
-/*void AccelGyro_task1(void *parameter){
+void AccelGyro_task1(void *parameter)
+{
   TickType_t xLastWakeTime = xTaskGetTickCount();
   const TickType_t xFrequency = pdMS_TO_TICKS(ACC_TIMER);
 
   int16_t AcX, AcY, AcZ;
-  int16_t AcXf, AcYf, AcZf;
-  AcXf=-819;
-  AcYf=164;
-  AcZf=819;
-  int16_t AcMod;
-  int16_t GyX, GyY, GyZ;
-  uint8_t AccData[8];
-  uint8_t GyroData[8];
-  int16_t roll_rate = -92;
-  int16_t pitch_rate = 121;
-  int16_t yaw_rate = -121;
-  float RateRoll,RatePitch,RateYaw;
-  float aX,aY,aZ;
-  float aMod;
-
-  for (;;)
-  {
-    if (acc_start){
-      if (xSemaphoreTake(i2cMutex, portMAX_DELAY) == pdTRUE) {
-    uint8_t pwr_mgmt_1 = readRegister(0x6B);
-    if (pwr_mgmt_1 & 0x40) { // bit SLEEP ativo
-      I2C_MPU6050.beginTransmission(MPU_addr);
-      I2C_MPU6050.write(0x6B);
-      I2C_MPU6050.write(0x01); // reativa e define GyroX como clock
-      I2C_MPU6050.endTransmission();
-      Serial.println("MPU6050 reativado do modo sleep");
-    }
-    
-    I2C_MPU6050.beginTransmission(MPU_addr);
-    I2C_MPU6050.write(0x3B); // Endereço do primeiro registrador de dados
-    if (!I2C_MPU6050.endTransmission(false)){
-      accgyro_status = 2;
-    }
-    else{
-      accgyro_status = 1;
-    }
-    I2C_MPU6050.requestFrom(MPU_addr, 14, true);
-
-    AcX = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
-    AcY = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
-    AcZ = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
-    
-    I2C_MPU6050.read(); I2C_MPU6050.read(); // Temperatura (ignorada)
-    GyX = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
-    GyY = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
-    GyZ = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
-
-    xSemaphoreGive(i2cMutex);
-    }
-    AcX+=AcXf;
-    AcY+=AcYf;
-    AcZ+=AcZf;
-
-    GyX-=roll_rate;
-    GyY-=pitch_rate;
-    GyZ-=yaw_rate;
-
-    RateRoll=(float)GyX/65.5;
-    RatePitch=(float)GyY/65.5;
-    RateYaw=(float)GyZ/65.5;
-
-
-    aX = (float)AcX/16384;
-    aY = (float)AcY/16384;
-    aZ = (float)AcZ/16384;
-
-    AcMod = (int16_t)sqrt((double)((int32_t)AcX * AcX + (int32_t)AcY * AcY + (int32_t)AcZ * AcZ));
-    aMod = (float)AcMod/16384;
-
-    Serial.print("AcX: "); Serial.print(aX); Serial.print(" ");
-    Serial.print(" AcY: "); Serial.print(aY); Serial.print(" ");
-    Serial.print(" AcZ: "); Serial.print(aZ); Serial.print(" ");
-    Serial.print(" AcMod: "); Serial.print(aMod); Serial.print(" ");
-    Serial.print(" GyX: "); Serial.print(RateRoll); Serial.print(" ");
-    Serial.print(" GyY: "); Serial.print(RatePitch); Serial.print(" ");
-    Serial.print(" GyZ: "); Serial.println(RateYaw);
-
-
-    sensorUpdate(aX,Accel_X.index);
-    sensorUpdate(aY,Accel_Y.index);
-    sensorUpdate(aZ,Accel_Z.index);
-    sensorUpdate(aMod,Accel.index);
-    sensorUpdate(RateRoll,Gyro_X.index);
-    sensorUpdate(RatePitch,Gyro_Y.index);
-    sensorUpdate(RateYaw,Gyro_Z.index);
-
-      AccData[0] = AcX & 0xFF;
-      AccData[1] = (AcX >> 8) & 0xFF;
-      AccData[2] = AcY & 0xFF;
-      AccData[3] = (AcY >> 8) & 0xFF;
-      AccData[4] = AcZ & 0xFF;
-      AccData[5] = (AcZ >> 8) & 0xFF;
-      AccData[6] = AcMod & 0xFF;
-      AccData[7] = (AcMod >> 8) & 0xFF;
-
-      sendCANMessage(ACC_ID, AccData, ACC_DLC);
-
-      GyroData[0] = GyX & 0xFF;
-      GyroData[1] = (GyX >> 8) & 0xFF;
-      GyroData[2] = GyY & 0xFF;
-      GyroData[3] = (GyY >> 8) & 0xFF;
-      GyroData[4] = GyZ & 0xFF;
-      GyroData[5] = (GyZ >> 8) & 0xFF;
-      GyroData[6] = 0;
-      GyroData[7] = 0;
-
-      sendCANMessage(GYRO_ID, GyroData, GYRO_DLC);
-    }
-    vTaskDelay(xFrequency);
-  }
-}*/
-
-void AccelGyro_task1(void *parameter){
-  TickType_t xLastWakeTime = xTaskGetTickCount();
-  const TickType_t xFrequency = pdMS_TO_TICKS(ACC_TIMER);
-
-  int16_t AcX, AcY, AcZ;
-  //int16_t AcXf = -819;
-  //int16_t AcYf = 164;
-  //int16_t AcZf = 819;
+  // int16_t AcXf = -819;
+  // int16_t AcYf = 164;
+  // int16_t AcZf = 819;
   int16_t AcXf = -175;
   int16_t AcYf = 25;
   int16_t AcZf = 225;
@@ -1241,32 +1096,52 @@ void AccelGyro_task1(void *parameter){
   float RateRoll, RatePitch, RateYaw;
   float aX, aY, aZ;
   float aMod;
-  
+
   uint8_t errorCount = 0;
   uint8_t sleepCheckCounter = 0; // Só verifica sleep a cada N ciclos
 
+  static bool setupSensors = false;
+  if (!setupSensors)
+  {
+    sensorTypes[Accel_X.index] = TYPE_FLOAT;
+    sensorTypes[Accel_Y.index] = TYPE_FLOAT;
+    sensorTypes[Accel_Z.index] = TYPE_FLOAT;
+    sensorTypes[Accel.index] = TYPE_FLOAT;
+    sensorTypes[Gyro_X.index] = TYPE_FLOAT;
+    sensorTypes[Gyro_Y.index] = TYPE_FLOAT;
+    sensorTypes[Gyro_Z.index] = TYPE_FLOAT;
+
+    setupSensors = true;
+  }
+
   for (;;)
   {
-    if (acc_start) {
-      if (xSemaphoreTake(i2cMutex, portMAX_DELAY) == pdTRUE) {
-        
+    if (acc_start)
+    {
+      if (xSemaphoreTake(i2cMutex, portMAX_DELAY) == pdTRUE)
+      {
+
         bool dataValid = false;
-        
+
         // ⚠️ VERIFICA SLEEP APENAS A CADA 20 LEITURAS (evita sobrecarga I2C)
-        if (sleepCheckCounter >= 20) {
+        if (sleepCheckCounter >= 20)
+        {
           sleepCheckCounter = 0;
-          
+
           I2C_MPU6050.beginTransmission(MPU_addr);
           I2C_MPU6050.write(0x6B);
           uint8_t error = I2C_MPU6050.endTransmission(false);
-          
-          if (error == 0) {
+
+          if (error == 0)
+          {
             uint8_t bytesReceived = I2C_MPU6050.requestFrom(MPU_addr, (uint8_t)1, (uint8_t)true);
-            if (bytesReceived == 1) {
+            if (bytesReceived == 1)
+            {
               uint8_t pwr_mgmt_1 = I2C_MPU6050.read();
-              
-              if (pwr_mgmt_1 & 0x40) {
-                //Serial.println("MPU6050 em SLEEP! Reativando...");
+
+              if (pwr_mgmt_1 & 0x40)
+              {
+                // Serial.println("MPU6050 em SLEEP! Reativando...");
                 I2C_MPU6050.beginTransmission(MPU_addr);
                 I2C_MPU6050.write(0x6B);
                 I2C_MPU6050.write(0x01);
@@ -1277,73 +1152,84 @@ void AccelGyro_task1(void *parameter){
           }
         }
         sleepCheckCounter++;
-        
+
         // ⚠️ LÊ DADOS DO ACELERÔMETRO E GIROSCÓPIO
         I2C_MPU6050.beginTransmission(MPU_addr);
         I2C_MPU6050.write(0x3B);
         uint8_t error = I2C_MPU6050.endTransmission(false);
-        
-        if (error == 0) {
+
+        if (error == 0)
+        {
           uint8_t bytesReceived = I2C_MPU6050.requestFrom(MPU_addr, (uint8_t)14, (uint8_t)true);
-          
-          if (bytesReceived == 14) {
+
+          if (bytesReceived == 14)
+          {
             AcX = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
             AcY = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
             AcZ = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
-            
-            I2C_MPU6050.read(); I2C_MPU6050.read(); // Temperatura
-            
+
+            I2C_MPU6050.read();
+            I2C_MPU6050.read(); // Temperatura
+
             GyX = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
             GyY = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
             GyZ = I2C_MPU6050.read() << 8 | I2C_MPU6050.read();
-            
+
             dataValid = true;
             accgyro_status = 2;
             errorCount = 0;
-          } else {
+          }
+          else
+          {
             accgyro_status = 1;
             errorCount++;
-            //Serial.printf("Erro: esperava 14 bytes, recebeu %d\n", bytesReceived);
-            
+            // Serial.printf("Erro: esperava 14 bytes, recebeu %d\n", bytesReceived);
+
             // Limpa buffer se houver dados pendentes
-            while (I2C_MPU6050.available()) {
+            while (I2C_MPU6050.available())
+            {
               I2C_MPU6050.read();
             }
           }
-        } else {
+        }
+        else
+        {
           accgyro_status = 1;
           errorCount++;
-          //Serial.printf(" Erro I2C: %d\n", error);
+          // Serial.printf(" Erro I2C: %d\n", error);
         }
-        
+
         xSemaphoreGive(i2cMutex);
-        
+
         // ⚠️ REINICIA MPU SE MUITOS ERROS
-        if (errorCount > 10) {
-          //Serial.println(" Muitos erros! Reiniciando MPU6050...");
-          if (xSemaphoreTake(i2cMutex, portMAX_DELAY) == pdTRUE) {
+        if (errorCount > 10)
+        {
+          // Serial.println(" Muitos erros! Reiniciando MPU6050...");
+          if (xSemaphoreTake(i2cMutex, portMAX_DELAY) == pdTRUE)
+          {
             // Reset completo
             I2C_MPU6050.beginTransmission(MPU_addr);
             I2C_MPU6050.write(0x6B);
             I2C_MPU6050.write(0x80); // Reset bit
             I2C_MPU6050.endTransmission();
             vTaskDelay(pdMS_TO_TICKS(100));
-            
+
             // Reconfigura
             I2C_MPU6050.beginTransmission(MPU_addr);
             I2C_MPU6050.write(0x6B);
             I2C_MPU6050.write(0x01);
             I2C_MPU6050.endTransmission();
-            
+
             xSemaphoreGive(i2cMutex);
           }
           errorCount = 0;
           vTaskDelay(pdMS_TO_TICKS(200));
           continue;
         }
-        
+
         //  SÓ PROCESSA SE DADOS VÁLIDOS
-        if (dataValid) {
+        if (dataValid)
+        {
           AcX += AcXf;
           AcY += AcYf;
           AcZ += AcZf;
@@ -1363,13 +1249,13 @@ void AccelGyro_task1(void *parameter){
           AcMod = (int16_t)sqrt((double)((int32_t)AcX * AcX + (int32_t)AcY * AcY + (int32_t)AcZ * AcZ));
           aMod = (float)AcMod / 4096;
 
-          //Serial.print("AcX: "); Serial.print(aX);
-          //Serial.print(" AcY: "); Serial.print(aY);
-          //Serial.print(" AcZ: "); Serial.print(aZ);
-          //Serial.print(" AcMod: "); Serial.print(aMod);
-          //Serial.print(" GyX: "); Serial.print(RateRoll);
-          //Serial.print(" GyY: "); Serial.print(RatePitch);
-          //Serial.print(" GyZ: "); Serial.println(RateYaw);
+          // Serial.print("AcX: "); Serial.print(aX);
+          // Serial.print(" AcY: "); Serial.print(aY);
+          // Serial.print(" AcZ: "); Serial.print(aZ);
+          // Serial.print(" AcMod: "); Serial.print(aMod);
+          // Serial.print(" GyX: "); Serial.print(RateRoll);
+          // Serial.print(" GyY: "); Serial.print(RatePitch);
+          // Serial.print(" GyZ: "); Serial.println(RateYaw);
 
           sensorUpdate(aX, Accel_X.index);
           sensorUpdate(aY, Accel_Y.index);
@@ -1409,18 +1295,27 @@ void AccelGyro_task1(void *parameter){
 
 void fn_Group_0(__u8 data[GROUP0_DLC])
 {
-  __u16 r_seconds = word(data[0],data[1]);
-  __u16 r_pw1 = word(data[2],data[3]);
-  __u16 r_pw2 = word(data[4],data[5]);
-  __u16 r_RPM = word(data[6],data[7]);
+  static bool setupSensors = false;
+  if (!setupSensors)
+  {
+    sensorTypes[MS2_Sec.index] = TYPE_UINT;
+    sensorTypes[MS2_Bank1.index] = TYPE_FLOAT;
+    sensorTypes[MS2_Bank2.index] = TYPE_FLOAT;
+    sensorTypes[RPM_Sensor.index] = TYPE_UINT;
+    setupSensors = true;
+  }
 
-  __u16 seconds = MS2_U16_Calibration(r_seconds,MS2_1_cal,MS2_1_cal);
-  float pw1 = MS2_Float_Calibration(r_pw1,MS2_1_cal,MS2_1000_cal);
-  float pw2 = MS2_Float_Calibration(r_pw2,MS2_1_cal,MS2_1000_cal);
-  __u16 RPM = MS2_U16_Calibration(r_RPM,MS2_1_cal,MS2_1_cal);
-  
+  __u16 r_seconds = word(data[0], data[1]);
+  __u16 r_pw1 = word(data[2], data[3]);
+  __u16 r_pw2 = word(data[4], data[5]);
+  __u16 r_RPM = word(data[6], data[7]);
 
-  //setPayload(rpm_byte,RPM);
+  __u16 seconds = MS2_U16_Calibration(r_seconds, MS2_1_cal, MS2_1_cal);
+  float pw1 = MS2_Float_Calibration(r_pw1, MS2_1_cal, MS2_1000_cal);
+  float pw2 = MS2_Float_Calibration(r_pw2, MS2_1_cal, MS2_1000_cal);
+  __u16 RPM = MS2_U16_Calibration(r_RPM, MS2_1_cal, MS2_1_cal);
+
+  // setPayload(rpm_byte,RPM);
 
   sensorUpdate(seconds, MS2_Sec.index);
   sensorUpdate(pw1, MS2_Bank1.index);
@@ -1430,40 +1325,57 @@ void fn_Group_0(__u8 data[GROUP0_DLC])
 
 void fn_Group_1(__u8 data[GROUP1_DLC])
 {
-  __s16 r_Fin_Ign_Sprk_Adv = word(data[0],data[1]);
+  static bool setupSensors = false;
+  if (!setupSensors)
+  {
+    sensorTypes[MS2_Fin_Ign_Sprk_Adv.index] = TYPE_FLOAT;
+    sensorTypes[MS2_BatchFire_Inj_Events.index] = TYPE_UINT;
+    sensorTypes[MS2_EngineStatus.index] = TYPE_UINT;
+    sensorTypes[MS2_Bank1_AFR_Tgt.index] = TYPE_FLOAT;
+    sensorTypes[MS2_Bank2_AFR_Tgt.index] = TYPE_FLOAT;
+    setupSensors = true;
+  }
+
+  __s16 r_Fin_Ign_Sprk_Adv = word(data[0], data[1]);
   __u8 r_BatchFire_Inj_Events = data[2];
   __u8 r_EngineStatus = data[3];
   __u8 r_Bank1_AFR_Tgt = data[4];
   __u8 r_Bank2_AFR_Tgt = data[5];
 
-float Fin_Ign_Sprk_Adv = MS2_Float_Calibration(r_Fin_Ign_Sprk_Adv,MS2_1_cal,MS2_10_cal);
-__u8 BatchFire_Inj_Events = MS2_U8_Calibration(r_BatchFire_Inj_Events,MS2_1_cal,MS2_1_cal);
-__u8 EngineStatus = MS2_U8_Calibration(r_EngineStatus,MS2_1_cal,MS2_1_cal);
-float Bank1_AFR_Tgt = MS2_Float_Calibration(r_Bank1_AFR_Tgt,MS2_1_cal,MS2_10_cal);
-float Bank2_AFR_Tgt = MS2_Float_Calibration(r_Bank2_AFR_Tgt,MS2_1_cal,MS2_10_cal);
+  float Fin_Ign_Sprk_Adv = MS2_Float_Calibration(r_Fin_Ign_Sprk_Adv, MS2_1_cal, MS2_10_cal);
+  __u8 BatchFire_Inj_Events = MS2_U8_Calibration(r_BatchFire_Inj_Events, MS2_1_cal, MS2_1_cal);
+  __u8 EngineStatus = MS2_U8_Calibration(r_EngineStatus, MS2_1_cal, MS2_1_cal);
+  float Bank1_AFR_Tgt = MS2_Float_Calibration(r_Bank1_AFR_Tgt, MS2_1_cal, MS2_10_cal);
+  float Bank2_AFR_Tgt = MS2_Float_Calibration(r_Bank2_AFR_Tgt, MS2_1_cal, MS2_10_cal);
 
-sensorUpdate(Fin_Ign_Sprk_Adv, MS2_Fin_Ign_Sprk_Adv.index);
-sensorUpdate(BatchFire_Inj_Events, MS2_BatchFire_Inj_Events.index);
-sensorUpdate(EngineStatus, MS2_EngineStatus.index);
-sensorUpdate(Bank1_AFR_Tgt, MS2_Bank1_AFR_Tgt.index);
-sensorUpdate(Bank2_AFR_Tgt, MS2_Bank2_AFR_Tgt.index);
-
+  sensorUpdate(Fin_Ign_Sprk_Adv, MS2_Fin_Ign_Sprk_Adv.index);
+  sensorUpdate(BatchFire_Inj_Events, MS2_BatchFire_Inj_Events.index);
+  sensorUpdate(EngineStatus, MS2_EngineStatus.index);
+  sensorUpdate(Bank1_AFR_Tgt, MS2_Bank1_AFR_Tgt.index);
+  sensorUpdate(Bank2_AFR_Tgt, MS2_Bank2_AFR_Tgt.index);
 }
 
 void fn_Group_2(__u8 data[GROUP2_DLC])
 {
-  
-  __s16 r_Baro = word(data[0],data[1]);
-  __s16 r_MAP = word(data[2],data[3]);
-  __s16 r_MAT = word(data[4],data[5]);
-  __s16 r_CLT = word(data[6],data[7]);
+  static bool setupSensors = false;
+  if (!setupSensors)
+  {
+    sensorTypes[MS2_Baro_Press.index] = TYPE_FLOAT;
+    sensorTypes[MS2_MAP.index] = TYPE_FLOAT;
+    sensorTypes[MS2_MAT.index] = TYPE_FLOAT;
+    sensorTypes[MS2_CLT.index] = TYPE_FLOAT;
+    setupSensors = true;
+  }
 
+  __s16 r_Baro = word(data[0], data[1]);
+  __s16 r_MAP = word(data[2], data[3]);
+  __s16 r_MAT = word(data[4], data[5]);
+  __s16 r_CLT = word(data[6], data[7]);
 
-  float Baro = MS2_Float_Calibration(r_Baro,MS2_1_cal,MS2_10_cal);
-  float MAP = MS2_Float_Calibration(r_MAP,MS2_1_cal,MS2_10_cal);
-  float MAT = (MS2_Float_Calibration(r_MAT,MS2_1_cal,MS2_10_cal)-32)*FtC;
-  float CLT = (MS2_Float_Calibration(r_CLT,MS2_1_cal,MS2_10_cal)-32)*FtC;
-  
+  float Baro = MS2_Float_Calibration(r_Baro, MS2_1_cal, MS2_10_cal);
+  float MAP = MS2_Float_Calibration(r_MAP, MS2_1_cal, MS2_10_cal);
+  float MAT = (MS2_Float_Calibration(r_MAT, MS2_1_cal, MS2_10_cal) - 32) * FtC;
+  float CLT = (MS2_Float_Calibration(r_CLT, MS2_1_cal, MS2_10_cal) - 32) * FtC;
 
   sensorUpdate(Baro, MS2_Baro_Press.index);
   sensorUpdate(MAP, MS2_MAP.index);
@@ -1473,17 +1385,25 @@ void fn_Group_2(__u8 data[GROUP2_DLC])
 
 void fn_Group_3(__u8 data[GROUP3_DLC])
 {
-  __s16 r_TPS = word(data[0],data[1]);
-  __s16 r_Voltage = word(data[2],data[3]);
-  __s16 r_AFR1 = word(data[4],data[5]);
-  __s16 r_AFR2 = word(data[6],data[7]);
+  static bool setupSensors = false;
+  if (!setupSensors)
+  {
+    sensorTypes[MS2_TPS.index] = TYPE_INT;
+    sensorTypes[MS2_Voltage.index] = TYPE_FLOAT;
+    sensorTypes[MS2_AFR1.index] = TYPE_FLOAT;
+    sensorTypes[MS2_AFR2.index] = TYPE_FLOAT;
+    setupSensors = true;
+  }
 
+  __s16 r_TPS = word(data[0], data[1]);
+  __s16 r_Voltage = word(data[2], data[3]);
+  __s16 r_AFR1 = word(data[4], data[5]);
+  __s16 r_AFR2 = word(data[6], data[7]);
 
-  __s16 TPS = MS2_S16_Calibration(r_TPS,MS2_1_cal,MS2_10_cal);
-  float Voltage = MS2_Float_Calibration(r_Voltage,MS2_1_cal,MS2_10_cal);
-  float AFR1 = MS2_Float_Calibration(r_AFR1,MS2_1_cal,MS2_10_cal);
-  float AFR2 = MS2_Float_Calibration(r_AFR2,MS2_1_cal,MS2_10_cal);
-  
+  __s16 TPS = MS2_S16_Calibration(r_TPS, MS2_1_cal, MS2_10_cal);
+  float Voltage = MS2_Float_Calibration(r_Voltage, MS2_1_cal, MS2_10_cal);
+  float AFR1 = MS2_Float_Calibration(r_AFR1, MS2_1_cal, MS2_10_cal);
+  float AFR2 = MS2_Float_Calibration(r_AFR2, MS2_1_cal, MS2_10_cal);
 
   sensorUpdate(TPS, MS2_TPS.index);
   sensorUpdate(Voltage, MS2_Voltage.index);
@@ -1493,6 +1413,15 @@ void fn_Group_3(__u8 data[GROUP3_DLC])
 
 /*void fn_Group_4(__u8 data[GROUP4_DLC])
 {
+  static bool setupSensors = false;
+  if (!setupSensors) {
+      sensorTypes[MS2_knockIn.index] = TYPE_INT;
+      sensorTypes[MS2_egoCorr1.index] = TYPE_INT;
+      sensorTypes[MS2_egoCorr2.index] = TYPE_INT;
+      sensorTypes[MS2_aircor.index] = TYPE_INT;
+      setupSensors = true;
+  }
+
   __s16 r_knockIn = word(data[0],data[1]);
   __s16 r_egoCor1 = word(data[2],data[3]);
   __s16 r_egoCor2 = word(data[4],data[5]);
@@ -1503,7 +1432,7 @@ void fn_Group_3(__u8 data[GROUP3_DLC])
   __s16 egoCor1 = MS2_Float_Calibration(r_egoCor1,MS2_1_cal,MS2_10_cal);
   __s16 egoCor2 = MS2_Float_Calibration(r_egoCor2,MS2_1_cal,MS2_10_cal);
   __s16 aircor = MS2_Float_Calibration(r_aircor,MS2_1_cal,MS2_10_cal);
-  
+
 
   sensorUpdate(knockIn, MS2_knockIn.index);
   sensorUpdate(egoCor1, MS2_egoCorr1.index);
@@ -1513,15 +1442,25 @@ void fn_Group_3(__u8 data[GROUP3_DLC])
 
 void fn_Group_7(__u8 data[GROUP7_DLC])
 {
-  __s16 r_cold_Adv = word(data[0],data[1]);
-  __s16 r_TPS_rate = word(data[2],data[3]);
-  __s16 r_MAP_rate = word(data[4],data[5]);
-  __s16 r_RPM_rate = word(data[6],data[7]);
+  static bool setupSensors = false;
+  if (!setupSensors)
+  {
+    sensorTypes[MS2_Cold_Adv.index] = TYPE_FLOAT;
+    sensorTypes[MS2_TPS_Rate.index] = TYPE_FLOAT;
+    sensorTypes[MS2_MAP_Rate.index] = TYPE_FLOAT;
+    sensorTypes[MS2_RPM_Rate.index] = TYPE_INT;
+    setupSensors = true;
+  }
 
-  float cold_Adv = MS2_Float_Calibration(r_cold_Adv,MS2_1_cal,MS2_10_cal);
-  float TPS_rate = MS2_Float_Calibration(r_TPS_rate,MS2_1_cal,MS2_10_cal);
-  float MAP_rate = MS2_Float_Calibration(r_MAP_rate,MS2_1_cal,MS2_1_cal);
-  __s16 RPM_rate = MS2_S16_Calibration(r_RPM_rate,MS2_10_cal,MS2_1_cal);
+  __s16 r_cold_Adv = word(data[0], data[1]);
+  __s16 r_TPS_rate = word(data[2], data[3]);
+  __s16 r_MAP_rate = word(data[4], data[5]);
+  __s16 r_RPM_rate = word(data[6], data[7]);
+
+  float cold_Adv = MS2_Float_Calibration(r_cold_Adv, MS2_1_cal, MS2_10_cal);
+  float TPS_rate = MS2_Float_Calibration(r_TPS_rate, MS2_1_cal, MS2_10_cal);
+  float MAP_rate = MS2_Float_Calibration(r_MAP_rate, MS2_1_cal, MS2_1_cal);
+  __s16 RPM_rate = MS2_S16_Calibration(r_RPM_rate, MS2_10_cal, MS2_1_cal);
 
   sensorUpdate(cold_Adv, MS2_Cold_Adv.index);
   sensorUpdate(TPS_rate, MS2_TPS_Rate.index);
@@ -1531,15 +1470,25 @@ void fn_Group_7(__u8 data[GROUP7_DLC])
 
 void fn_Group_8(__u8 data[GROUP8_DLC])
 {
-  __s16 r_MAF_Load = word(data[0],data[1]);
-  __s16 r_Fuel_Load = word(data[2],data[3]);
-  __s16 r_Fuel_Correction = word(data[4],data[5]);
-  __s16 r_MAF = word(data[6],data[7]);
+  static bool setupSensors = false;
+  if (!setupSensors)
+  {
+    sensorTypes[MS2_MAF_Load.index] = TYPE_FLOAT;
+    sensorTypes[MS2_Fuel_Load.index] = TYPE_FLOAT;
+    sensorTypes[MS2_Fuel_Correction.index] = TYPE_FLOAT;
+    sensorTypes[MS2_MAF.index] = TYPE_FLOAT;
+    setupSensors = true;
+  }
 
-  float MAF_Load = MS2_Float_Calibration(r_MAF_Load,MS2_1_cal,MS2_10_cal);
-  float Fuel_Load = MS2_Float_Calibration(r_Fuel_Load,MS2_1_cal,MS2_10_cal);
-  float Fuel_Correction = MS2_Float_Calibration(r_Fuel_Correction,MS2_1_cal,MS2_10_cal);
-  float MAF = MS2_Float_Calibration(r_MAF,MS2_1_cal,MS2_100_cal);
+  __s16 r_MAF_Load = word(data[0], data[1]);
+  __s16 r_Fuel_Load = word(data[2], data[3]);
+  __s16 r_Fuel_Correction = word(data[4], data[5]);
+  __s16 r_MAF = word(data[6], data[7]);
+
+  float MAF_Load = MS2_Float_Calibration(r_MAF_Load, MS2_1_cal, MS2_10_cal);
+  float Fuel_Load = MS2_Float_Calibration(r_Fuel_Load, MS2_1_cal, MS2_10_cal);
+  float Fuel_Correction = MS2_Float_Calibration(r_Fuel_Correction, MS2_1_cal, MS2_10_cal);
+  float MAF = MS2_Float_Calibration(r_MAF, MS2_1_cal, MS2_100_cal);
 
   sensorUpdate(MAF_Load, MS2_MAF_Load.index);
   sensorUpdate(Fuel_Load, MS2_Fuel_Load.index);
@@ -1549,15 +1498,25 @@ void fn_Group_8(__u8 data[GROUP8_DLC])
 
 void fn_Group_9(__u8 data[GROUP9_DLC])
 {
-  __s16 r_O2_V1= word(data[0],data[1]);
-  __s16 r_O2_V2 = word(data[2],data[3]);
-  __u16 r_Main_Dwell = word(data[4],data[5]);
-  __u16 r_Trailing_Dwell = word(data[6],data[7]);
+  static bool setupSensors = false;
+  if (!setupSensors)
+  {
+    sensorTypes[MS2_O2_V1.index] = TYPE_FLOAT;
+    sensorTypes[MS2_O2_V2.index] = TYPE_FLOAT;
+    sensorTypes[MS2_Main_Ign_Dwell.index] = TYPE_FLOAT;
+    sensorTypes[MS2_Trailing_Ign_Dwell.index] = TYPE_FLOAT;
+    setupSensors = true;
+  }
 
-  float O2_V1 = MS2_Float_Calibration(r_O2_V1,MS2_1_cal,MS2_100_cal);
-  float O2_V2 = MS2_Float_Calibration(r_O2_V2,MS2_1_cal,MS2_100_cal);
-  float Main_Dwell = MS2_Float_Calibration(r_Main_Dwell,MS2_1_cal,MS2_10_cal);
-  float Trailing_Dwell = MS2_Float_Calibration(r_Trailing_Dwell,MS2_1_cal,MS2_10_cal);
+  __s16 r_O2_V1 = word(data[0], data[1]);
+  __s16 r_O2_V2 = word(data[2], data[3]);
+  __u16 r_Main_Dwell = word(data[4], data[5]);
+  __u16 r_Trailing_Dwell = word(data[6], data[7]);
+
+  float O2_V1 = MS2_Float_Calibration(r_O2_V1, MS2_1_cal, MS2_100_cal);
+  float O2_V2 = MS2_Float_Calibration(r_O2_V2, MS2_1_cal, MS2_100_cal);
+  float Main_Dwell = MS2_Float_Calibration(r_Main_Dwell, MS2_1_cal, MS2_10_cal);
+  float Trailing_Dwell = MS2_Float_Calibration(r_Trailing_Dwell, MS2_1_cal, MS2_10_cal);
 
   sensorUpdate(O2_V1, MS2_O2_V1.index);
   sensorUpdate(O2_V2, MS2_O2_V2.index);
@@ -1567,41 +1526,51 @@ void fn_Group_9(__u8 data[GROUP9_DLC])
 
 void fn_Group_15(__u8 data[GROUP15_DLC])
 {
-  __s16 r_OilPress= word(data[0],data[1]);
+  static bool setupSensors = false;
+  if (!setupSensors)
+  {
+    sensorTypes[Oil_Pressure_Sensor.index] = TYPE_FLOAT;
+    setupSensors = true;
+  }
+
+  __s16 r_OilPress = word(data[0], data[1]);
   //__s16 r_O2_V2 = word(data[2],data[3]);
 
-  float OilPress = MS2_Float_Calibration(r_OilPress,MS2_1_cal,MS2_10_cal);
+  float OilPress = MS2_Float_Calibration(r_OilPress, MS2_1_cal, MS2_10_cal);
 
   sensorUpdate(OilPress, Oil_Pressure_Sensor.index);
 }
 
-void MessagesFN(void *parameter){
+void MessagesFN(void *parameter)
+{
   TickType_t xLastWakeTime = xTaskGetTickCount();
   const TickType_t xFrequency = pdMS_TO_TICKS(MESSAGES_TIMER);
   static __u8 data[8];
   for (;;)
   {
-    data[0] = sd_status&0b11;
-    data[0] |= (accgyro_status&0b11)<<2;
-    sendCANMessage(MESSAGES_ID,data,MESSAGES_DLC);
+    data[0] = sd_status & 0b11;
+    data[0] |= (accgyro_status & 0b11) << 2;
+    sendCANMessage(MESSAGES_ID, data, MESSAGES_DLC);
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
-
 }
 
-uint8_t readRegister(uint8_t reg) {
+uint8_t readRegister(uint8_t reg)
+{
   I2C_MPU6050.beginTransmission(MPU_addr);
   I2C_MPU6050.write(reg);
   I2C_MPU6050.endTransmission(false);
   I2C_MPU6050.requestFrom(MPU_addr, 1, true);
-  if (I2C_MPU6050.available()) {
+  if (I2C_MPU6050.available())
+  {
     return I2C_MPU6050.read();
   }
   return 0xFF; // valor inválido se falhar
 }
 
-void TempTask(void *parameter){
-    TickType_t xLastWakeTime = xTaskGetTickCount();
+void TempTask(void *parameter)
+{
+  TickType_t xLastWakeTime = xTaskGetTickCount();
   const TickType_t xFrequency = pdMS_TO_TICKS(TEMP_TIMER);
 
   static const unsigned char Register = 0x07;
@@ -1630,7 +1599,6 @@ void TempTask(void *parameter){
   }
 }
 
-
 /*void SIM_Task(void *parameter){
   TickType_t xLastWakeTime = xTaskGetTickCount();
   static TickType_t FirstTime = xTaskGetTickCount();
@@ -1653,7 +1621,7 @@ void TempTask(void *parameter){
       TickType_t startTick = xTaskGetTickCount();
       TickType_t lastDataTick = startTick;
       bool init_get = 0;
-      msg = readSIM(30000); //espera 20 segundos para iniciar 
+      msg = readSIM(30000); //espera 20 segundos para iniciar
         if (msg.indexOf("+CPIN: READY") != -1 && !m1) {
         m1=true;
         Serial.println("SIM OK");
@@ -1667,8 +1635,8 @@ void TempTask(void *parameter){
         init=1;
       }
       simCOM.println("AT");
-      
-      
+
+
       Serial.println(msg);
       msg = "";
       vTaskDelay(pdMS_TO_TICKS(10000));
@@ -1683,7 +1651,7 @@ void TempTask(void *parameter){
     }
 
     else if (sim_setup){
-      
+
       if (!mqtt_started){
         if (mqtt_start(first_open)){
           mqtt_started = 1;
@@ -1696,7 +1664,7 @@ void TempTask(void *parameter){
       if(mqtt_started){
         if(mqtt_payload[0]!=0){
         if(!mqtt_publish("Test2142151",mqtt_payload)){
-          
+
           while(!mqtt_close(first_close)){
             first_close = 0;
           }
@@ -1711,6 +1679,62 @@ void TempTask(void *parameter){
       vTaskDelayUntil(&xLastWakeTime, xFrequency2);
     }
   }
+}*/
+
+void SIM_Task(void *parameter) {
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+  const TickType_t xFrequency1 = pdMS_TO_TICKS(1000);  // 1 segundo
+  static bool connection_setup = 0;
+  static bool mqtt_started = 0;
+
+  SIM7600_Init_Manager();
+
+  for (;;) {
+    // Fase 1: Configurar conexão de rede
+    if (!connection_setup) {
+       if (!SIM7600_Network_Manager()) {
+        Serial.println("✅ Conexão 4G estabelecida!");
+      }
+      vTaskDelayUntil(&xLastWakeTime, xFrequency1);
+      continue;
+    }
+    
+    // Fase 2: Conectar ao MQTT
+    if (!mqtt_started) {
+      Serial.println("=== Conectando ao broker MQTT ===");
+      mqtt_started = mqtt_start(true);
+      
+      if (mqtt_started) {
+        Serial.println("✅ MQTT conectado!");
+      }
+      vTaskDelayUntil(&xLastWakeTime, xFrequency1);
+      continue;
+    }
+    
+    // Fase 3: Operação normal - publicar dados
+    // Exemplo: publicar a cada 5 segundos
+    static uint32_t lastPublish = 0;
+    if (millis() - lastPublish > 5000) {
+      
+      // Construir payload
+      clearPayload();
+      setPayload('T', millis() / 1000);  // Tempo em segundos
+      setPayload('R', random(1000, 8000)); // RPM aleatório para teste
+      
+      // Publicar
+      bool published = mqtt_publish("formula/telemetry", mqtt_payload);
+      
+      if (published) {
+        Serial.println("📤 Telemetria enviada!");
+      } else {
+        Serial.println("❌ Falha ao enviar telemetria");
+      }
+      
+      lastPublish = millis();
+    }
+    
+    vTaskDelayUntil(&xLastWakeTime, xFrequency1);
+  }
 }
 
 void MQTT_Time_Task(void *parameter){
@@ -1723,4 +1747,4 @@ void MQTT_Time_Task(void *parameter){
     setPayload32(time_byte, (unsigned int)timeValues[buffer_write]);
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
-}*/
+}
