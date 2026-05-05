@@ -4,7 +4,7 @@
 //#include <SdFat.h>
 
 
-#include <Formula_SIM7600G.h>
+//#include <Formula_SIM7600G.h>
 #include <Wire.h>
 #include <Adafruit_MLX90614.h>
 #include <RTClib.h>

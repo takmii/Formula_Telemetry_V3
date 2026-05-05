@@ -84,11 +84,11 @@ void setup()
   while (!Serial)
   {
   }
-  simCOM.setRxBufferSize(2048);
+  /*simCOM.setRxBufferSize(2048);
   simCOM.begin(115200, SERIAL_8N1, RX_PIN, TX_PIN);
   while(!simCOM)
   {
-  }
+  }*/
   init_twai();
 
   disableBluetooth();
@@ -271,7 +271,7 @@ void setup()
       0            // Core where the task should run (0 or 1)
   );
 
-  xTaskCreatePinnedToCore(
+  /*xTaskCreatePinnedToCore(
       SIM_Task,    // Function to implement the task
       "SIM Task", // Name of the task
       8192,       // Stack size in words
@@ -296,55 +296,6 @@ void loop()
 {
 }
 
-/*void sensorUpdate(float value, uint8_t index)
-{
-  snprintf(sensorValues[buffer_write][row_write][index], 7, "%.2f", value);
-}
-
-void sensorUpdate(uint8_t value, uint8_t index)
-{
-  snprintf(sensorValues[buffer_write][row_write][index], 7, "%d", value);
-}
-
-void sensorUpdate(uint16_t value, uint8_t index)
-{
-  snprintf(sensorValues[buffer_write][row_write][index], 7, "%d", value);
-}
-
-void sensorUpdate(uint32_t value, uint8_t index)
-{
-  snprintf(sensorValues[buffer_write][row_write][index], 7, "%d", value);
-}
-
-void sensorUpdate(uint64_t value, uint8_t index)
-{
-  snprintf(sensorValues[buffer_write][row_write][index], 7, "%llu", value);
-}
-
-void sensorUpdate(String value, uint8_t index)
-{
-  value.toCharArray(sensorValues[buffer_write][row_write][index], 7);
-}
-
-void sensorUpdate(int8_t value, uint8_t index)
-{
-  snprintf(sensorValues[buffer_write][row_write][index], 7, "%d", value);
-}
-
-void sensorUpdate(int16_t value, uint8_t index)
-{
-  snprintf(sensorValues[buffer_write][row_write][index], 7, "%d", value);
-}
-
-void sensorUpdate(int32_t value, uint8_t index)
-{
-  snprintf(sensorValues[buffer_write][row_write][index], 7, "%ld", (long)value);
-}
-
-void sensorUpdate(int64_t value, uint8_t index)
-{
-  snprintf(sensorValues[buffer_write][row_write][index], 7, "%lld", (long long)value);
-}*/
 
 void sensorUpdate(float value, uint8_t index)
 {
@@ -1681,7 +1632,7 @@ void TempTask(void *parameter)
   }
 }*/
 
-void SIM_Task(void *parameter) {
+/*void SIM_Task(void *parameter) {
   TickType_t xLastWakeTime = xTaskGetTickCount();
   const TickType_t xFrequency1 = pdMS_TO_TICKS(1000);  // 1 segundo
   static bool connection_setup = 0;
@@ -1747,4 +1698,4 @@ void MQTT_Time_Task(void *parameter){
     setPayload32(time_byte, (unsigned int)timeValues[buffer_write]);
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
-}
+}*/
